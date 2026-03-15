@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { CreateExpenseInput, Category, TransactionType, PaymentMethod } from "@/types"
+import type { Category, TransactionType, PaymentMethod } from "@/types"
 
 const CATEGORIES: Category[] = [
   "Food", "Travel", "Shopping", "Bills", "Entertainment", "Income", "Health", "Other"
@@ -25,14 +25,13 @@ export default function AddExpenseModal({ onClose, onSuccess }: Props) {
 
     const formData = new FormData(e.currentTarget)
 
-    const input: CreateExpenseInput = {
+    const input = {
       name: formData.get("name") as string,
       amount: Number(formData.get("amount")),
       type: formData.get("type") as TransactionType,
       category: formData.get("category") as Category,
       date: new Date(formData.get("date") as string),
-      status: "cleared",
-      paymentMethod: formData.get("paymentMethod") as PaymentMethod,
+      status: "cleared" as const,
       note: formData.get("note") as string || undefined,
     }
 

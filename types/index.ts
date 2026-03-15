@@ -23,6 +23,7 @@ export interface Expense {
   status: ExpenseStatus;
   date: Date;
   notes?: string;
+  paymentMethod?: PaymentMethod;
   userId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -59,7 +60,4 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type CreateExpenseInput = Omit<
-  Expense,
-  "id" | "userId" | "createdAt" | "updatedAt"
->;
+export type CreateExpenseInput = Omit<Expense, "id" | "createdAt" | "updatedAt" | "userId">;
