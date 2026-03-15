@@ -10,6 +10,8 @@ export type Category =
 
 export type TransactionType = "expense" | "income";
 
+export type PaymentMethod = "cash" | "card" | "upi" | "netbanking";
+
 export type ExpenseStatus = "pending" | "cleared" | "flagged";
 
 export interface Expense {
