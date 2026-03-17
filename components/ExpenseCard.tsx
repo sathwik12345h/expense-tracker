@@ -1,3 +1,7 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import type { Expense } from "@/types"
 
 const categoryConfig: Record<string, { bg: string; color: string; emoji: string }> = {
@@ -14,24 +18,44 @@ const categoryConfig: Record<string, { bg: string; color: string; emoji: string 
 export default function ExpenseCard({ expense }: { expense: Expense }) {
   const config = categoryConfig[expense.category] ?? categoryConfig.Other
   const isIncome = expense.type === "income"
+  const [deleting, setDeleting] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const router = useRouter()
+
+  async function handleDelete() {
+    if (!confirm("Delete this transaction?")) return
+    setDeleting(true)
+    try {
+      await fetch(`/api/expenses/${expense.id}`, { method: "DELETE" })
+      router.refresh()
+    } catch {
+      alert("Failed to delete")
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "16px 28px",
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
-      transition: "background 0.2s",
-      fontFamily: "'DM Sans', sans-serif",
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between",
+        padding: "16px 28px",
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        background: hovered ? "rgba(255,255,255,0.02)" : "transparent",
+        transition: "background 0.2s",
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
       {/* Left */}
       <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
         <div style={{
           width: "42px", height: "42px", borderRadius: "12px",
           background: config.bg,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "18px", flexShrink: 0,
+          display: "flex", alignItems: "center",
+          justifyContent: "center", fontSize: "18px", flexShrink: 0,
         }}>
           {config.emoji}
         </div>
@@ -40,11 +64,8 @@ export default function ExpenseCard({ expense }: { expense: Expense }) {
             {expense.name}
           </p>
           <span style={{
-            background: config.bg,
-            color: config.color,
-            fontSize: "11px",
-            padding: "2px 10px",
-            borderRadius: "20px",
+            background: config.bg, color: config.color,
+            fontSize: "11px", padding: "2px 10px", borderRadius: "20px",
           }}>
             {expense.category}
           </span>
@@ -52,20 +73,41 @@ export default function ExpenseCard({ expense }: { expense: Expense }) {
       </div>
 
       {/* Right */}
-      <div style={{ textAlign: "right" }}>
-        <p style={{
-          color: isIncome ? "#34d399" : "#f87171",
-          fontSize: "14px",
-          fontWeight: 500,
-          margin: "0 0 4px 0",
-        }}>
-          {isIncome ? "+" : "-"}₹{expense.amount.toLocaleString()}
-        </p>
-        <p style={{ color: "#334155", fontSize: "12px", margin: 0 }}>
-          {new Date(expense.date).toLocaleDateString("en-IN", {
-            day: "numeric", month: "short",
-          })}
-        </p>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ textAlign: "right" }}>
+          <p style={{
+            color: isIncome ? "#34d399" : "#f87171",
+            fontSize: "14px", fontWeight: 500, margin: "0 0 4px 0",
+          }}>
+            {isIncome ? "+" : "-"}₹{expense.amount.toLocaleString()}
+          </p>
+          <p style={{ color: "#334155", fontSize: "12px", margin: 0 }}>
+            {new Date(expense.date).toLocaleDateString("en-IN", {
+              day: "numeric", month: "short",
+            })}
+          </p>
+        </div>
+
+        {/* Delete button — shows on hover */}
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          style={{
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.2)",
+            borderRadius: "8px",
+            color: "#f87171",
+            width: "32px", height: "32px",
+            cursor: deleting ? "not-allowed" : "pointer",
+            fontSize: "14px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.2s",
+            flexShrink: 0,
+          }}
+        >
+          {deleting ? "..." : "✕"}
+        </button>
       </div>
     </div>
   )

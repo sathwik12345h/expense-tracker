@@ -1,19 +1,8 @@
 import { auth, signOut } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import type { Expense, ApiResponse } from "@/types"
+import { prisma } from "@/lib/prisma"
 import DashboardClient from "@/components/DashboardClient"
-
-async function getExpenses(): Promise<Expense[]> {
-  try {
-    const res = await fetch("http://localhost:3000/api/expenses", {
-      cache: "no-store",
-    })
-    const json: ApiResponse<Expense[]> = await res.json()
-    return json.data ?? []
-  } catch {
-    return []
-  }
-}
+import type { Expense } from "@/types"
 
 function calculateStats(expenses: Expense[]) {
   const income = expenses
@@ -27,9 +16,30 @@ function calculateStats(expenses: Expense[]) {
 
 export default async function DashboardPage() {
   const session = await auth()
-  if (!session?.user) redirect("/login")
+  if (!session?.user?.id) redirect("/login")
 
-  const expenses = await getExpenses()
+  // Fetch directly from database — no API call needed in server components
+  const rawExpenses = await prisma.expense.findMany({
+    where: { userId: session.user.id },
+    orderBy: { date: "desc" },
+  })
+
+  // Convert to match our Expense type
+  const expenses: Expense[] = rawExpenses.map((e) => ({
+    id: e.id,
+    name: e.name,
+    amount: e.amount,
+    type: e.type as "expense" | "income",
+    category: e.category as any,
+    status: e.status as any,
+    date: e.date,
+    note: e.note ?? undefined,
+    paymentMethod: e.paymentMethod as any,
+    userId: e.userId,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+  }))
+
   const stats = calculateStats(expenses)
 
   return (
@@ -38,11 +48,8 @@ export default async function DashboardPage() {
       background: "linear-gradient(135deg, #0a0a0f 0%, #0f0f1a 50%, #0a0f0a 100%)",
       fontFamily: "'DM Sans', sans-serif",
     }}>
-
-      {/* Nav */}
       <nav style={{
-        display: "flex",
-        alignItems: "center",
+        display: "flex", alignItems: "center",
         justifyContent: "space-between",
         padding: "20px 40px",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -56,7 +63,6 @@ export default async function DashboardPage() {
           }}>₹</div>
           <span style={{ color: "#fff", fontWeight: 500, letterSpacing: "0.05em" }}>Spendwise</span>
         </div>
-
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <span style={{ color: "#94a3b8", fontSize: "14px" }}>
             Hello, <span style={{ color: "#fff", fontWeight: 500 }}>{session.user.name}</span>
@@ -68,22 +74,21 @@ export default async function DashboardPage() {
             <button type="submit" style={{
               background: "transparent",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "10px",
-              color: "#94a3b8",
-              padding: "8px 16px",
-              fontSize: "13px",
-              cursor: "pointer",
-              fontFamily: "'DM Sans', sans-serif",
-            }}>
-              Sign out
-            </button>
+              borderRadius: "10px", color: "#94a3b8",
+              padding: "8px 16px", fontSize: "13px",
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+            }}>Sign out</button>
           </form>
         </div>
       </nav>
 
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "48px 40px" }}>
-
-        <DashboardClient expenses={expenses} stats={stats} userName={session.user.name ?? ""} />
+        <DashboardClient
+          expenses={expenses}
+          stats={stats}
+          userName={session.user.name ?? ""}
+          userId={session.user.id}
+        />
       </div>
 
       <style>{`

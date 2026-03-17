@@ -16,9 +16,11 @@ interface Props {
   expenses: Expense[]
   stats: Stats
   userName: string
+  userId: string
 }
 
-export default function DashboardClient({ expenses, stats, userName }: Props) {
+export default function DashboardClient({ expenses, stats, userName, userId }: Props) {
+
   const [showModal, setShowModal] = useState(false)
   const router = useRouter()
 
@@ -134,6 +136,7 @@ export default function DashboardClient({ expenses, stats, userName }: Props) {
         <AddExpenseModal
           onClose={() => setShowModal(false)}
           onSuccess={handleSuccess}
+          userId={userId}
         />
       )}
     </>
