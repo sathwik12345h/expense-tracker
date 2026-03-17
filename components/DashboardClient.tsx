@@ -50,7 +50,7 @@ export default function DashboardClient({ expenses, stats, userName, userId }: P
             }}>Dashboard</span>
           </h1>
           <p style={{ color: "#64748b", fontSize: "14px", marginTop: "8px" }}>
-            Here's where your money stands today.
+            No transactions yet. Add your first one!
           </p>
         </div>
 

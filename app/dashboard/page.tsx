@@ -2,7 +2,7 @@ import { auth, signOut } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import DashboardClient from "@/components/DashboardClient"
-import type { Expense } from "@/types"
+import type { Expense, Category, ExpenseStatus, PaymentMethod } from "@/types"
 
 function calculateStats(expenses: Expense[]) {
   const income = expenses
@@ -30,11 +30,11 @@ export default async function DashboardPage() {
     name: e.name,
     amount: e.amount,
     type: e.type as "expense" | "income",
-    category: e.category as any,
-    status: e.status as any,
+    category: e.category as Category,
+    status: e.status as ExpenseStatus,
     date: e.date,
     note: e.note ?? undefined,
-    paymentMethod: e.paymentMethod as any,
+    paymentMethod: e.paymentMethod as PaymentMethod | undefined,
     userId: e.userId,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
