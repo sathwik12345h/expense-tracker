@@ -18,13 +18,15 @@ export default async function DashboardPage() {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
-  // Fetch directly from database — no API call needed in server components
+  const month = new Date().getMonth() + 1
+  const year = new Date().getFullYear()
+
+  // Fetch expenses
   const rawExpenses = await prisma.expense.findMany({
     where: { userId: session.user.id },
     orderBy: { date: "desc" },
   })
 
-  // Convert to match our Expense type
   const expenses: Expense[] = rawExpenses.map((e) => ({
     id: e.id,
     name: e.name,
@@ -40,6 +42,33 @@ export default async function DashboardPage() {
     updatedAt: e.updatedAt,
   }))
 
+  // Fetch budgets with spent amounts
+  const startDate = new Date(year, month - 1, 1)
+  const endDate = new Date(year, month, 0)
+
+  const budgets = await prisma.budget.findMany({
+    where: { userId: session.user.id, month, year },
+  })
+
+  const monthlyExpenses = await prisma.expense.findMany({
+    where: {
+      userId: session.user.id,
+      type: "expense",
+      date: { gte: startDate, lte: endDate },
+    },
+  })
+
+  const budgetSummary = budgets.map((budget) => {
+    const spent = monthlyExpenses
+      .filter((e) => e.category === budget.category)
+      .reduce((sum, e) => sum + e.amount, 0)
+    return {
+      category: budget.category,
+      limit: budget.limit,
+      spent,
+    }
+  })
+
   const stats = calculateStats(expenses)
 
   return (
@@ -48,21 +77,36 @@ export default async function DashboardPage() {
       background: "linear-gradient(135deg, #0a0a0f 0%, #0f0f1a 50%, #0a0f0a 100%)",
       fontFamily: "'DM Sans', sans-serif",
     }}>
+      {/* Nav */}
       <nav style={{
         display: "flex", alignItems: "center",
         justifyContent: "space-between",
         padding: "20px 40px",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{
-            width: "36px", height: "36px", borderRadius: "10px",
-            background: "linear-gradient(135deg, #d97706, #fbbf24)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: "bold", color: "#000", fontSize: "16px",
-          }}>₹</div>
-          <span style={{ color: "#fff", fontWeight: 500, letterSpacing: "0.05em" }}>Spendwise</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{
+              width: "36px", height: "36px", borderRadius: "10px",
+              background: "linear-gradient(135deg, #d97706, #fbbf24)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontWeight: "bold", color: "#000", fontSize: "16px",
+            }}>₹</div>
+            <span style={{ color: "#fff", fontWeight: 500, letterSpacing: "0.05em" }}>Spendwise</span>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <a href="/dashboard" style={{
+              color: "#fbbf24", fontSize: "14px",
+              textDecoration: "none", padding: "6px 12px",
+              borderRadius: "8px", background: "rgba(234,179,8,0.08)",
+            }}>Dashboard</a>
+            <a href="/dashboard/budget" style={{
+              color: "#64748b", fontSize: "14px",
+              textDecoration: "none", padding: "6px 12px", borderRadius: "8px",
+            }}>Budget</a>
+          </div>
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <span style={{ color: "#94a3b8", fontSize: "14px" }}>
             Hello, <span style={{ color: "#fff", fontWeight: 500 }}>{session.user.name}</span>
@@ -88,6 +132,7 @@ export default async function DashboardPage() {
           stats={stats}
           userName={session.user.name ?? ""}
           userId={session.user.id}
+          budgetSummary={budgetSummary}
         />
       </div>
 
