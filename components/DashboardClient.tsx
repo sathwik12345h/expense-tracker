@@ -3,6 +3,7 @@
 import { useState } from "react"
 import ExpenseCard from "@/components/ExpenseCard"
 import AddExpenseModal from "@/components/AddExpenseModal"
+import ExpenseCharts from "@/components/ExpenseCharts"
 import type { Expense } from "@/types"
 import { useRouter } from "next/navigation"
 
@@ -239,6 +240,8 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
           }}>Set budgets →</a>
         </div>
       )}
+
+      <ExpenseCharts expenses={expenses} />
 
       {/* Transactions */}
       <div style={{
