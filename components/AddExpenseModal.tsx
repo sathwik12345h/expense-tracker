@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import type { Category, TransactionType, PaymentMethod } from "@/types"
+import VoiceButton from "@/components/VoiceButton"
+import ReceiptScanner from "@/components/ReceiptScanner"
 
 const CATEGORIES: Category[] = [
   "Food", "Travel", "Shopping", "Bills", "Entertainment", "Income", "Health", "Other"
@@ -13,12 +15,13 @@ interface Props {
   onClose: () => void
   onSuccess: () => void
   userId: string
-  prefill?: { name?: string; amount?: number; category?: string } | null
+  prefill?: { name?: string; amount?: number; category?: string; type?: string } | null
 }
 
 export default function AddExpenseModal({ onClose, onSuccess, userId, prefill }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -118,13 +121,32 @@ export default function AddExpenseModal({ onClose, onSuccess, userId, prefill }:
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <button
+            type="button"
+            onClick={() => setShowReceiptScanner(true)}
+            style={{
+              width: "100%", padding: "12px",
+              borderRadius: "12px",
+              background: "rgba(16,185,129,0.06)",
+              border: "1px solid rgba(16,185,129,0.2)",
+              color: "#34d399",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "13px", fontWeight: 500,
+              cursor: "pointer",
+              display: "flex", alignItems: "center",
+              justifyContent: "center", gap: "8px",
+            }}
+          >
+            📷 Scan Receipt Instead
+          </button>
+
           <div>
             <label style={labelStyle}>Type</label>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               {(["expense", "income"] as TransactionType[]).map((t) => (
                 <label key={t} style={{ cursor: "pointer" }}>
                   <input type="radio" name="type" value={t}
-                    defaultChecked={t === "expense"}
+                    defaultChecked={prefill?.type ? t === prefill.type : t === "expense"}
                     style={{ display: "none" }} />
                   <div style={{
                     padding: "10px", borderRadius: "10px",
@@ -212,8 +234,48 @@ export default function AddExpenseModal({ onClose, onSuccess, userId, prefill }:
           }}>
             {loading ? "Saving..." : "Add Transaction →"}
           </button>
+
+          <div style={{ marginTop: "8px" }}>
+            <VoiceButton
+              floating={false}
+              onAddExpense={(data) => {
+                if (data.name) {
+                  const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement
+                  if (nameInput) nameInput.value = data.name
+                }
+                if (data.amount) {
+                  const amountInput = document.querySelector('input[name="amount"]') as HTMLInputElement
+                  if (amountInput) amountInput.value = String(data.amount)
+                }
+              }}
+              onDeleteExpense={() => {}}
+              onNavigate={() => {}}
+              onAIQuery={() => {}}
+              onSetBudget={() => {}}
+            />
+          </div>
         </form>
       </div>
+
+      {showReceiptScanner && (
+        <ReceiptScanner
+          onTransactionsFound={(transactions) => {
+            if (transactions.length > 0) {
+              const first = transactions[0]
+              if (first.name) {
+                const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement
+                if (nameInput) nameInput.value = first.name
+              }
+              if (first.amount) {
+                const amountInput = document.querySelector('input[name="amount"]') as HTMLInputElement
+                if (amountInput) amountInput.value = String(first.amount)
+              }
+            }
+            setShowReceiptScanner(false)
+          }}
+          onClose={() => setShowReceiptScanner(false)}
+        />
+      )}
     </>
   )
 }

@@ -10,6 +10,7 @@ import SpendingChart from "@/components/ai/SpendingChart"
 interface Props {
   onClose: () => void
   onPrefillExpense?: (data: { name?: string; amount?: number; category?: string }) => void
+  initialQuery?: string
 }
 
 interface AIResponse {
@@ -42,8 +43,8 @@ const SUGGESTIONS = [
   "Predict my month-end spending",
 ]
 
-export default function AIAssistant({ onClose, onPrefillExpense }: Props) {
-  const [query, setQuery] = useState("")
+export default function AIAssistant({ onClose, onPrefillExpense, initialQuery }: Props) {
+  const [query, setQuery] = useState(initialQuery ?? "")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [aiResponse, setAiResponse] = useState<AIResponse | null>(null)
@@ -53,12 +54,17 @@ export default function AIAssistant({ onClose, onPrefillExpense }: Props) {
   useEffect(() => {
     inputRef.current?.focus()
 
+    if (initialQuery) {
+      setQuery(initialQuery)
+      handleSubmit(initialQuery)
+    }
+
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [onClose])
+  }, [])
 
   async function handleSubmit(q?: string) {
     const finalQuery = q || query

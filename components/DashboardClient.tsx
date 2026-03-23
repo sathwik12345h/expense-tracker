@@ -8,6 +8,9 @@ import type { Expense } from "@/types"
 import { useRouter } from "next/navigation"
 import AIAssistant from "@/components/AIAssistant"
 import AIInsights from "@/components/AIInsights"
+import VoiceButton from "@/components/VoiceButton"
+import ReceiptScanner from "@/components/ReceiptScanner"
+import { Toast, useToast } from "@/components/Toast"
 
 interface Stats {
   balance: number
@@ -42,11 +45,74 @@ const categoryEmoji: Record<string, string> = {
 export default function DashboardClient({ expenses, stats, userName, userId, budgetSummary }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [showAI, setShowAI] = useState(false)
-  const [prefillData, setPrefillData] = useState<{name?: string; amount?: number; category?: string} | null>(null)
+  const [prefillData, setPrefillData] = useState<{name?: string; amount?: number; category?: string; type?: string} | null>(null)
+  const [aiQuery, setAiQuery] = useState("")
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false)
+  const { toast, showToast, hideToast } = useToast()
   const router = useRouter()
 
   function handleSuccess() {
     router.refresh()
+  }
+
+  async function handleDeleteExpense(id: string) {
+    await fetch(`/api/expenses/${id}`, { method: "DELETE" })
+    router.refresh()
+  }
+
+  function handleNavigate(page: string) {
+    if (page === "budget") router.push("/dashboard/budget")
+    else router.push("/dashboard")
+  }
+
+  function handleAIQuery(query: string) {
+    setAiQuery(query)
+    setShowAI(true)
+  }
+
+  async function handleSetBudget(category: string, amount: number) {
+    await fetch("/api/budgets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        category,
+        limit: amount,
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+      }),
+    })
+    router.refresh()
+  }
+
+  async function handleReceiptTransactions(
+    transactions: Array<{ name: string; amount: number; category: string; type: string; note?: string }>,
+    date: string
+  ) {
+    try {
+      await Promise.all(
+        transactions.map((tx) =>
+          fetch("/api/expenses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: tx.name,
+              amount: tx.amount,
+              type: tx.type,
+              category: tx.category,
+              date: date === "today" ? new Date().toISOString() : new Date(date).toISOString(),
+              status: "cleared",
+              note: tx.note || null,
+              userId,
+            }),
+          })
+        )
+      )
+      showToast(`Added ${transactions.length} transaction${transactions.length > 1 ? "s" : ""} from receipt`, "success")
+      router.refresh()
+    } catch {
+      showToast("Failed to save some transactions", "error")
+    }
   }
 
   const activeBudgets = budgetSummary.filter((b) => b.limit > 0)
@@ -98,6 +164,25 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
           }}
         >
           ✦ Ask AI
+        </button>
+        <button
+          onClick={() => setShowReceiptScanner(true)}
+          style={{
+            background: "rgba(16,185,129,0.1)",
+            border: "1px solid rgba(16,185,129,0.3)",
+            borderRadius: "14px",
+            padding: "12px 20px",
+            color: "#34d399",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          📷 Scan Receipt
         </button>
         <button
           onClick={() => setShowModal(true)}
@@ -310,14 +395,37 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
 
       {showAI && (
         <AIAssistant
-          onClose={() => setShowAI(false)}
+          onClose={() => { setShowAI(false); setAiQuery("") }}
+          initialQuery={aiQuery}
           onPrefillExpense={(data) => {
             setShowAI(false)
+            setAiQuery("")
             setPrefillData(data)
             setShowModal(true)
           }}
         />
       )}
+
+      <VoiceButton
+        floating={true}
+        onAddExpense={(data) => {
+          setPrefillData(data)
+          setShowModal(true)
+        }}
+        onDeleteExpense={handleDeleteExpense}
+        onNavigate={handleNavigate}
+        onAIQuery={handleAIQuery}
+        onSetBudget={handleSetBudget}
+      />
+
+      {showReceiptScanner && (
+        <ReceiptScanner
+          onTransactionsFound={handleReceiptTransactions}
+          onClose={() => setShowReceiptScanner(false)}
+        />
+      )}
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
     </>
   )
 }
