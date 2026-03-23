@@ -13,9 +13,10 @@ interface Props {
   onClose: () => void
   onSuccess: () => void
   userId: string
+  prefill?: { name?: string; amount?: number; category?: string } | null
 }
 
-export default function AddExpenseModal({ onClose, onSuccess, userId }: Props) {
+export default function AddExpenseModal({ onClose, onSuccess, userId, prefill }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -143,19 +144,24 @@ export default function AddExpenseModal({ onClose, onSuccess, userId }: Props) {
             <label style={labelStyle}>Description</label>
             <input name="name" type="text"
               placeholder="e.g. Grocery Store, Netflix..."
+              defaultValue={prefill?.name ?? ""}
               required style={inputStyle} />
           </div>
 
           <div>
             <label style={labelStyle}>Amount (₹)</label>
             <input name="amount" type="number"
-              placeholder="0" min="1" required style={inputStyle} />
+              placeholder="0" min="1"
+              defaultValue={prefill?.amount ?? ""}
+              required style={inputStyle} />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div>
               <label style={labelStyle}>Category</label>
-              <select name="category" required style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+              <select name="category" required
+                defaultValue={prefill?.category ?? "Food"}
+                style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c} style={{ background: "#0f0f1a" }}>{c}</option>
                 ))}

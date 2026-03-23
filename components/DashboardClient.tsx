@@ -6,6 +6,8 @@ import AddExpenseModal from "@/components/AddExpenseModal"
 import ExpenseCharts from "@/components/ExpenseCharts"
 import type { Expense } from "@/types"
 import { useRouter } from "next/navigation"
+import AIAssistant from "@/components/AIAssistant"
+import AIInsights from "@/components/AIInsights"
 
 interface Stats {
   balance: number
@@ -39,6 +41,8 @@ const categoryEmoji: Record<string, string> = {
 
 export default function DashboardClient({ expenses, stats, userName, userId, budgetSummary }: Props) {
   const [showModal, setShowModal] = useState(false)
+  const [showAI, setShowAI] = useState(false)
+  const [prefillData, setPrefillData] = useState<{name?: string; amount?: number; category?: string} | null>(null)
   const router = useRouter()
 
   function handleSuccess() {
@@ -76,6 +80,25 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
             Here&apos;s where your money stands today.
           </p>
         </div>
+        <button
+          onClick={() => setShowAI(true)}
+          style={{
+            background: "rgba(99,102,241,0.1)",
+            border: "1px solid rgba(99,102,241,0.3)",
+            borderRadius: "14px",
+            padding: "12px 20px",
+            color: "#818cf8",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          ✦ Ask AI
+        </button>
         <button
           onClick={() => setShowModal(true)}
           style={{
@@ -116,6 +139,8 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
           </div>
         ))}
       </div>
+
+      <AIInsights />
 
       {/* Budget overview — only show if budgets are set */}
       {activeBudgets.length > 0 && (
@@ -276,9 +301,21 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
 
       {showModal && (
         <AddExpenseModal
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setPrefillData(null) }}
           onSuccess={handleSuccess}
           userId={userId}
+          prefill={prefillData}
+        />
+      )}
+
+      {showAI && (
+        <AIAssistant
+          onClose={() => setShowAI(false)}
+          onPrefillExpense={(data) => {
+            setShowAI(false)
+            setPrefillData(data)
+            setShowModal(true)
+          }}
         />
       )}
     </>
