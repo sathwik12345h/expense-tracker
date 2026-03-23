@@ -60,6 +60,7 @@ function parseNumberWords(text: string): string {
   return result
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function useVoiceInput() {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState("")
@@ -141,3 +142,4 @@ export function useVoiceInput() {
 
   return { isListening, transcript, processing, error, startListening, stopListening }
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */

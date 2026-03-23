@@ -96,17 +96,6 @@ export async function GET() {
       percentage: b.limit > 0 ? ((categoryBreakdown[b.category] || 0) / b.limit) * 100 : 0,
     }))
 
-    // Detect recurring expenses (same name appearing multiple times)
-    const expenseNames = expenses.map((e) => e.name.toLowerCase())
-    const nameCounts = expenseNames.reduce((acc, name) => {
-      acc[name] = (acc[name] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    const recurringExpenses = Object.entries(nameCounts)
-      .filter(([, count]) => count >= 2)
-      .map(([name]) => expenses.find((e) => e.name.toLowerCase() === name))
-      .filter(Boolean)
-
     // Upcoming events
     const upcomingEvents = getUpcomingEvents()
 

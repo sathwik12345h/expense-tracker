@@ -20,6 +20,7 @@ export default function VoiceButton({
   const { isListening, transcript, processing, error, startListening, stopListening } = useVoiceInput()
   const { toast, showToast, hideToast } = useToast()
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleVoiceResult(result: any) {
     const { intent, data, confirmationMessage } = result
 
@@ -116,7 +117,7 @@ export default function VoiceButton({
               <span style={{ color: "#6366f1", fontSize: "13px" }}>Processing...</span>
             )}
             {transcript && !processing && (
-              <span style={{ color: "#e2e8f0", fontSize: "12px" }}>"{transcript}"</span>
+              <span style={{ color: "#e2e8f0", fontSize: "12px" }}>&quot;{transcript}&quot;</span>
             )}
             {error && (
               <span style={{ color: "#f87171", fontSize: "12px" }}>{error}</span>
