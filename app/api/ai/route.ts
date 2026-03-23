@@ -7,6 +7,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 export async function POST(request: Request) {
   try {
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

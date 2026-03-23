@@ -10,9 +10,11 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^3.0.31",
     "@apollo/server": "^5.4.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.22.0",
+    "ai": "^3.4.33",
     "bcryptjs": "^3.0.3",
     "graphql": "^16.13.1",
     "groq-sdk": "^1.1.1",

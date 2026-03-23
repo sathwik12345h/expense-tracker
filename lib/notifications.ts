@@ -1,7 +1,5 @@
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 interface BudgetAlertProps {
   userName: string
   userEmail: string
@@ -19,6 +17,7 @@ export async function sendBudgetAlert({
   limit,
   percentage,
 }: BudgetAlertProps) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const isOver = spent > limit
   const subject = isOver
     ? `⚠️ You exceeded your ${category} budget`

@@ -8,17 +8,22 @@ RUN npm ci
 # Step 2 — Build the app
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
-RUN npm run build
+RUN GROQ_API_KEY=placeholder \
+    RESEND_API_KEY=placeholder \
+    NEXTAUTH_SECRET=placeholder \
+    NEXTAUTH_URL=http://localhost:3000 \
+    DATABASE_URL=postgresql://placeholder:placeholder@localhost/placeholder \
+    CRON_SECRET=placeholder \
+    npm run build
 
 # Step 3 — Run the app
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-
-# Fix OpenSSL for Prisma on Alpine
 RUN apk add --no-cache openssl
 
 COPY --from=builder /app/public ./public
