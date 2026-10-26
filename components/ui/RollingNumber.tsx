@@ -8,7 +8,7 @@ const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 export function RollingNumber({ text, className = "" }: { text: string; className?: string }) {
   const chars = Array.from(text)
   return (
-    <span className={`inline-flex items-baseline tnum ${className}`} aria-label={text} role="img">
+    <span className={`inline-flex items-end tnum ${className}`} aria-label={text} role="img">
       {chars.map((ch, i) => {
         // key from the right so digits keep their identity as the length changes
         const key = chars.length - i

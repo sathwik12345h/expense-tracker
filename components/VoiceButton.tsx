@@ -1,8 +1,12 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { CircleAlert, Mic, Square, X } from "lucide-react"
 import { useVoiceInput } from "@/hooks/useVoiceInput"
-import { Toast, useToast } from "@/components/Toast"
 import { speak } from "@/lib/speechSynthesis"
+import { toast } from "@/components/ui/toast"
+import { DockTip } from "@/components/dashboard/Dock"
+import { formatMoney } from "@/lib/format"
 
 interface Props {
   onAddExpense: (data: { name?: string; amount?: number; category?: string; type?: string }) => void
@@ -10,30 +14,75 @@ interface Props {
   onNavigate: (page: string) => void
   onAIQuery: (query: string) => void
   onSetBudget: (category: string, amount: number) => void
+  variant?: "dock" | "inline"
+  /** Legacy prop from the old floating mic; ignored. */
   floating?: boolean
 }
 
+interface VoiceCommand {
+  intent: string
+  data: {
+    name?: string
+    amount?: number
+    category?: string
+    type?: string
+    expenseId?: string
+    page?: string
+    query?: string
+    budgetCategory?: string
+    budgetAmount?: number
+  }
+  confirmationMessage?: string
+}
+
+const WAVE = [0.45, 0.8, 0.55, 1, 0.7, 0.9, 0.5, 0.85, 0.6, 1, 0.65, 0.4]
+
+function Wave({ className = "", bars = WAVE }: { className?: string; bars?: number[] }) {
+  return (
+    <span aria-hidden className={`flex items-center gap-[3px] ${className}`}>
+      {bars.map((b, i) => (
+        <span
+          key={i}
+          className="w-[3px] origin-center rounded-full bg-current"
+          style={{ height: `${b * 100}%`, animation: `wave-bar 1s ease-in-out ${i * 0.07}s infinite` }}
+        />
+      ))}
+    </span>
+  )
+}
+
+function Spinner({ className = "" }: { className?: string }) {
+  return <span aria-hidden className={`inline-block animate-[spin_.8s_linear_infinite] rounded-full border-2 ${className}`} />
+}
+
+/**
+ * Speak an entry or a command. "dock" is the round mic in the action dock with
+ * a listening popover above it; "inline" is a pill for the new-entry sheet.
+ */
 export default function VoiceButton({
-  onAddExpense, onDeleteExpense, onNavigate,
-  onAIQuery, onSetBudget, floating = false
+  onAddExpense, onDeleteExpense, onNavigate, onAIQuery, onSetBudget, variant = "dock",
 }: Props) {
   const { isListening, transcript, processing, error, startListening, stopListening } = useVoiceInput()
-  const { toast, showToast, hideToast } = useToast()
+  // the popover lingers after a result; this remembers which result was dismissed
+  const [dismissed, setDismissed] = useState<string | null>(null)
+  // between the click and the mic actually opening (permission prompt, warm-up)
+  // the hook reports nothing — remember the result we started from instead
+  const [armedFrom, setArmedFrom] = useState<string | null>(null)
+  if (isListening && armedFrom !== null) setArmedFrom(null)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function handleVoiceResult(result: any) {
-    const { intent, data, confirmationMessage } = result
+  function handleVoiceResult(result: unknown) {
+    const { intent, data, confirmationMessage } = result as VoiceCommand
 
     if (intent === "delete_expense") {
       if (!data.expenseId) {
-        showToast("Could not find that expense", "error")
+        toast("Couldn't find that entry", "error")
         speak("I could not find that expense")
         return
       }
       const confirmed = window.confirm(`${confirmationMessage}\n\nAre you sure?`)
       if (!confirmed) return
       onDeleteExpense(data.expenseId)
-      showToast("Expense deleted", "success")
+      toast("Entry deleted", "success")
       speak("Done. Expense deleted.")
       return
     }
@@ -46,158 +95,195 @@ export default function VoiceButton({
           category: data.category,
           type: data.type || "expense",
         })
-        showToast(`Opening form: ${data.name || "new expense"} ₹${data.amount || ""}`, "success")
-        speak(`Opening add expense form for ${data.name || "new expense"} ${data.amount ? `rupees ${data.amount}` : ""}`)
+        toast(
+          `${variant === "inline" ? "Filled in" : "New entry"}: ${data.name || "untitled"}${data.amount ? ` · ${formatMoney(Number(data.amount))}` : ""}`,
+          "success"
+        )
+        speak(`Opening add expense form for ${data.name || "new expense"} ${data.amount ? `${data.amount} dollars` : ""}`)
         break
       case "navigate":
         if (data.page) onNavigate(data.page)
-        showToast(`Navigating to ${data.page}`, "info")
+        toast(`Going to ${data.page === "budget" ? "Budgets" : "Overview"}`, "info")
         speak(`Going to ${data.page} page`)
         break
       case "ai_query":
         if (data.query) onAIQuery(data.query)
-        showToast("Opening AI assistant...", "info")
+        toast("Asking your ledger…", "info")
         speak("Let me check that for you")
         break
       case "set_budget":
         if (data.budgetCategory && data.budgetAmount) {
           onSetBudget(data.budgetCategory, data.budgetAmount)
-          showToast(`Budget set: ${data.budgetCategory} ₹${data.budgetAmount}`, "success")
-          speak(`Done. ${data.budgetCategory} budget set to rupees ${data.budgetAmount}`)
+          toast(`${data.budgetCategory} budget set to ${formatMoney(Number(data.budgetAmount))}`, "success")
+          speak(`Done. ${data.budgetCategory} budget set to ${data.budgetAmount} dollars`)
         }
         break
       default:
-        showToast("Command not understood. Try again.", "error")
+        toast("Didn't catch that. Try again.", "error")
         speak("Sorry, I did not understand that command")
         break
     }
   }
 
+  const busy = isListening || processing
+  const snapshot = `${transcript}\u0000${error}`
+  const hasResult = Boolean(transcript || error)
+  const starting = armedFrom !== null && !busy && armedFrom === snapshot
+  const open = busy || starting || (hasResult && dismissed !== snapshot)
+
+  // results from the previous attempt stay hidden while the mic is opening
+  const shownTranscript = starting ? "" : transcript
+  const shownError = starting ? "" : error
+
+  function cancel() {
+    stopListening()
+    setArmedFrom(null)
+  }
+
   function handleClick() {
-    if (isListening) {
-      stopListening()
+    if (isListening || starting) {
+      cancel()
     } else {
+      setDismissed(null)
+      setArmedFrom(snapshot)
       startListening(handleVoiceResult)
     }
   }
 
-  if (floating) {
+  // a finished result tucks itself away after a few seconds
+  useEffect(() => {
+    if (busy || !hasResult) return
+    const t = window.setTimeout(() => setDismissed(snapshot), error ? 7000 : 5000)
+    return () => window.clearTimeout(t)
+  }, [busy, hasResult, snapshot, error])
+
+  const status = isListening
+    ? "Listening…"
+    : processing
+      ? "Working it out…"
+      : starting
+        ? "Opening the mic…"
+        : error
+          ? "Didn't catch that"
+          : "Heard"
+
+  if (variant === "inline") {
     return (
-      <div style={{ position: "fixed", bottom: "32px", right: "32px", zIndex: 50 }}>
-        {/* Transcript popup */}
-        {(isListening || processing || transcript) && (
-          <div style={{
-            position: "absolute", bottom: "70px", right: 0,
-            background: "#0f0f1a",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "14px", padding: "12px 16px",
-            minWidth: "220px", maxWidth: "300px",
-            fontFamily: "'DM Sans', sans-serif",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}>
-            {isListening && (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{
-                  display: "flex", gap: "3px", alignItems: "flex-end",
-                }}>
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} style={{
-                      width: "3px", borderRadius: "2px",
-                      background: "#6366f1",
-                      height: `${8 + i * 4}px`,
-                      animation: `wave 0.8s ease-in-out infinite`,
-                      animationDelay: `${i * 0.1}s`,
-                    }} />
-                  ))}
-                </div>
-                <span style={{ color: "#94a3b8", fontSize: "13px" }}>Listening...</span>
-              </div>
-            )}
-            {processing && (
-              <span style={{ color: "#6366f1", fontSize: "13px" }}>Processing...</span>
-            )}
-            {transcript && !processing && (
-              <span style={{ color: "#e2e8f0", fontSize: "12px" }}>&quot;{transcript}&quot;</span>
-            )}
-            {error && (
-              <span style={{ color: "#f87171", fontSize: "12px" }}>{error}</span>
-            )}
-          </div>
-        )}
-
-        {/* Floating mic button */}
+      <div className="flex flex-col items-start gap-2">
         <button
+          type="button"
           onClick={handleClick}
-          style={{
-            width: "56px", height: "56px", borderRadius: "50%",
-            background: isListening
-              ? "linear-gradient(135deg, #ef4444, #dc2626)"
-              : "linear-gradient(135deg, #6366f1, #8b5cf6)",
-            border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "22px",
-            boxShadow: isListening
-              ? "0 0 0 8px rgba(239,68,68,0.2), 0 8px 24px rgba(239,68,68,0.4)"
-              : "0 8px 24px rgba(99,102,241,0.4)",
-            transition: "all 0.3s",
-            animation: isListening ? "pulse-ring 1.5s ease-out infinite" : "none",
-          }}
+          disabled={processing}
+          aria-pressed={isListening}
+          className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[13.5px] font-medium transition disabled:cursor-wait ${
+            isListening
+              ? "border-ink bg-lime text-ink"
+              : "border-line bg-card text-ink hover:bg-paper-2"
+          }`}
         >
-          {processing ? "⟳" : isListening ? "⏹" : "🎤"}
+          {processing ? (
+            <Spinner className="size-3.5 border-ink/20 border-t-ink" />
+          ) : isListening ? (
+            <Square size={13} strokeWidth={2.4} aria-hidden className="fill-current" />
+          ) : (
+            <Mic size={16} strokeWidth={1.9} aria-hidden className={starting ? "animate-pulse" : ""} />
+          )}
+          {processing
+            ? "Working it out…"
+            : isListening
+              ? "Listening — tap to stop"
+              : starting
+                ? "Opening the mic…"
+                : "Fill by voice"}
+          {isListening && <Wave className="h-3.5" bars={WAVE.slice(0, 5)} />}
         </button>
-
-        <style>{`
-          @keyframes wave {
-            0%, 100% { transform: scaleY(1); }
-            50% { transform: scaleY(1.8); }
-          }
-          @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4), 0 8px 24px rgba(239,68,68,0.4); }
-            100% { box-shadow: 0 0 0 16px rgba(239,68,68,0), 0 8px 24px rgba(239,68,68,0.4); }
-          }
-        `}</style>
-        {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
+        <p aria-live="polite" className="max-w-[320px] text-[13px] leading-snug empty:hidden">
+          {shownError ? (
+            <span className="flex items-start gap-1.5 text-danger">
+              <CircleAlert size={14} strokeWidth={2} aria-hidden className="mt-[2px] shrink-0" />
+              {shownError}
+            </span>
+          ) : shownTranscript ? (
+            <span className="font-serif text-[17px] italic text-ink-2">&ldquo;{shownTranscript}&rdquo;</span>
+          ) : null}
+        </p>
       </div>
     )
   }
 
-  // Inline version for modal
   return (
-    <div>
-      <button
-        onClick={handleClick}
-        style={{
-          width: "100%", padding: "12px",
-          borderRadius: "12px",
-          background: isListening
-            ? "rgba(239,68,68,0.1)"
-            : "rgba(99,102,241,0.08)",
-          border: `1px solid ${isListening ? "rgba(239,68,68,0.3)" : "rgba(99,102,241,0.2)"}`,
-          color: isListening ? "#f87171" : "#818cf8",
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: "14px", fontWeight: 500,
-          cursor: "pointer",
-          display: "flex", alignItems: "center",
-          justifyContent: "center", gap: "8px",
-          transition: "all 0.2s",
-        }}
-      >
-        <span style={{ fontSize: "18px" }}>
-          {processing ? "⟳" : isListening ? "⏹" : "🎤"}
-        </span>
-        {processing ? "Processing..." : isListening ? "Tap to stop" : "Voice Input"}
-      </button>
+    <div className="relative">
+      {open && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="on-ink absolute bottom-[calc(100%+14px)] left-0 w-[min(320px,calc(100vw-48px))] origin-bottom-left animate-[pop-in_.3s_var(--ease-out-quint)] rounded-[22px] bg-ink p-4 text-on-ink shadow-lift ring-1 ring-on-ink/15"
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-3 ${
+                isListening ? "bg-lime text-ink" : shownError ? "bg-danger text-on-ink" : "bg-on-ink/10 text-on-ink"
+              }`}
+            >
+              {isListening ? (
+                <Wave className="h-4" />
+              ) : processing ? (
+                <Spinner className="size-4 border-on-ink/25 border-t-lime" />
+              ) : shownError ? (
+                <CircleAlert size={17} strokeWidth={2} aria-hidden />
+              ) : (
+                <Mic size={16} strokeWidth={1.9} aria-hidden className={starting ? "animate-pulse" : ""} />
+              )}
+            </span>
+            <p className="eyebrow min-w-0 flex-1 text-on-ink-muted">{status}</p>
+            {!busy && (
+              <button
+                type="button"
+                onClick={() => (starting ? cancel() : setDismissed(snapshot))}
+                aria-label={starting ? "Cancel" : "Dismiss"}
+                className="-mr-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-on-ink-muted transition hover:bg-on-ink/10 hover:text-on-ink"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
 
-      {(transcript || error) && (
-        <p style={{
-          color: error ? "#f87171" : "#94a3b8",
-          fontSize: "12px", marginTop: "8px", textAlign: "center",
-          fontFamily: "'DM Sans', sans-serif",
-        }}>
-          {error || `"${transcript}"`}
-        </p>
+          {starting && (
+            <p className="mt-3 text-[13.5px] leading-snug text-on-ink-muted">
+              If your browser asks, allow the microphone.
+            </p>
+          )}
+          {isListening && !transcript && (
+            <p className="mt-3 text-[13.5px] leading-snug text-on-ink-muted">
+              Try &ldquo;spent twelve dollars on lunch&rdquo; or &ldquo;how much did I spend on travel?&rdquo;
+            </p>
+          )}
+          {shownTranscript && (
+            <p className="mt-3 font-serif text-[22px] italic leading-[1.15] text-on-ink">&ldquo;{shownTranscript}&rdquo;</p>
+          )}
+          {shownError && <p className="mt-3 text-[13.5px] leading-snug text-on-ink">{shownError}</p>}
+        </div>
       )}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
+
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={processing}
+        aria-pressed={isListening}
+        aria-label={isListening ? "Stop listening" : processing ? "Working it out" : starting ? "Cancel voice entry" : "Speak an entry"}
+        className={`group relative inline-flex size-11 items-center justify-center rounded-full transition disabled:cursor-wait ${
+          isListening ? "bg-lime text-ink" : "text-on-ink hover:bg-on-ink/10"
+        }`}
+      >
+        {processing ? (
+          <Spinner className="size-[18px] border-on-ink/25 border-t-lime" />
+        ) : isListening ? (
+          <Square size={14} strokeWidth={2.4} aria-hidden className="fill-current" />
+        ) : (
+          <Mic size={19} strokeWidth={1.9} aria-hidden className={starting ? "animate-pulse" : ""} />
+        )}
+        {!open && <DockTip label="Speak an entry" />}
+      </button>
     </div>
   )
 }

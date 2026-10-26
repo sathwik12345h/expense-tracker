@@ -127,11 +127,11 @@ export function SheetHeader({
   title, subtitle, onClose, eyebrow,
 }: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; eyebrow?: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 px-6 pb-4 pt-6 sm:px-7">
+    <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5 sm:px-7 sm:pb-4 sm:pt-6">
       <div className="min-w-0">
         {eyebrow && <p className="eyebrow mb-2 text-muted">{eyebrow}</p>}
-        <h2 className="font-serif text-[34px] leading-[1.02] tracking-tight text-ink">{title}</h2>
-        {subtitle && <p className="mt-1.5 text-[13.5px] text-muted">{subtitle}</p>}
+        <h2 className="font-serif text-[28px] leading-[1.02] tracking-tight text-ink sm:text-[34px]">{title}</h2>
+        {subtitle && <p className="mt-1 text-[13px] text-muted sm:mt-1.5 sm:text-[13.5px]">{subtitle}</p>}
       </div>
       <button
         type="button"

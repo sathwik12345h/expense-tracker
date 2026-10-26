@@ -1,16 +1,23 @@
 "use client"
 
-import { useState } from "react"
-import ExpenseCard from "@/components/ExpenseCard"
-import AddExpenseModal from "@/components/AddExpenseModal"
-import ExpenseCharts from "@/components/ExpenseCharts"
-import type { Expense } from "@/types"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Table2 } from "lucide-react"
+import type { Expense } from "@/types"
+import AddExpenseModal from "@/components/AddExpenseModal"
 import AIAssistant from "@/components/AIAssistant"
 import AIInsights from "@/components/AIInsights"
 import VoiceButton from "@/components/VoiceButton"
 import ReceiptScanner from "@/components/ReceiptScanner"
-import { Toast, useToast } from "@/components/Toast"
+import BalanceCard from "@/components/dashboard/BalanceCard"
+import Dock from "@/components/dashboard/Dock"
+import BudgetOverview from "@/components/dashboard/BudgetOverview"
+import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel"
+import TransactionLedger from "@/components/dashboard/TransactionLedger"
+import DotCalendar from "@/components/charts/DotCalendar"
+import { Toaster, toast } from "@/components/ui/toast"
+import { useNow } from "@/components/ui/useHydrated"
+import { daysInMonth, formatMoney, greeting, localNoon } from "@/lib/format"
 
 interface Stats {
   balance: number
@@ -32,27 +39,167 @@ interface Props {
   budgetSummary: BudgetSummaryItem[]
 }
 
-const categoryColor: Record<string, string> = {
-  Food: "#fbbf24", Travel: "#f472b6", Shopping: "#fb923c",
-  Bills: "#60a5fa", Entertainment: "#a78bfa", Health: "#2dd4bf", Other: "#94a3b8",
+type DayValue = { total: number; count: number; top?: string }
+
+const monthKey = (y: number, m0: number) => `${y}-${String(m0 + 1).padStart(2, "0")}`
+
+/** Everything on the page that depends on "now" — computed only once hydrated. */
+function deriveMonth(expenses: Expense[], now: Date) {
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  const today = now.getDate()
+  const prev = new Date(y, m - 1, 1)
+  const prevY = prev.getFullYear()
+  const prevM = prev.getMonth()
+
+  let monthIncome = 0
+  let monthSpent = 0
+  let lastMonthSpent = 0
+  let lastMonthToDate = 0
+
+  const history = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(y, m - 5 + i, 1)
+    return { key: monthKey(d.getFullYear(), d.getMonth()), label: d.toLocaleDateString("en-US", { month: "short" }), net: 0 }
+  })
+  const historyIndex = new Map(history.map((h, i) => [h.key, i]))
+
+  const calendar: Record<number, DayValue> = {}
+  const byDayCategory: Record<number, Record<string, number>> = {}
+
+  for (const e of expenses) {
+    const d = new Date(e.date)
+    const isIncome = e.type === "income"
+    const hi = historyIndex.get(monthKey(d.getFullYear(), d.getMonth()))
+    if (hi !== undefined) history[hi].net += isIncome ? e.amount : -e.amount
+
+    if (d.getFullYear() === y && d.getMonth() === m) {
+      if (isIncome) {
+        monthIncome += e.amount
+        continue
+      }
+      monthSpent += e.amount
+      const day = d.getDate()
+      const cell = (calendar[day] ??= { total: 0, count: 0 })
+      cell.total += e.amount
+      cell.count += 1
+      const cats = (byDayCategory[day] ??= {})
+      cats[e.category] = (cats[e.category] ?? 0) + e.amount
+    } else if (!isIncome && d.getFullYear() === prevY && d.getMonth() === prevM) {
+      lastMonthSpent += e.amount
+      if (d.getDate() <= today) lastMonthToDate += e.amount
+    }
+  }
+
+  for (const [day, cats] of Object.entries(byDayCategory)) {
+    calendar[Number(day)].top = Object.entries(cats).sort((a, b) => b[1] - a[1])[0]?.[0]
+  }
+
+  return {
+    year: y,
+    month: m,
+    today,
+    days: daysInMonth(y, m),
+    monthName: now.toLocaleDateString("en-US", { month: "long" }),
+    monthShort: now.toLocaleDateString("en-US", { month: "short" }),
+    dateLine: now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }),
+    greeting: greeting(now),
+    monthIncome,
+    monthSpent,
+    lastMonthSpent,
+    lastMonthToDate,
+    history,
+    calendar,
+  }
 }
 
-const categoryEmoji: Record<string, string> = {
-  Food: "🍔", Travel: "✈️", Shopping: "🛍️",
-  Bills: "⚡", Entertainment: "🎬", Health: "💊", Other: "📌",
+function Lede({ spent, lastToDate }: { spent: number; lastToDate: number }) {
+  const diff = spent - lastToDate
+  if (spent === 0) {
+    return lastToDate > 0 ? (
+      <>Nothing spent yet this month. By now last month you were at {formatMoney(lastToDate)}.</>
+    ) : (
+      <>Nothing spent yet this month — a clean page.</>
+    )
+  }
+  const lead = (
+    <>
+      You&apos;ve spent <span className="font-semibold text-ink">{formatMoney(spent)}</span> so far this month
+    </>
+  )
+  if (lastToDate === 0) return <>{lead}.</>
+  if (Math.abs(diff) < 1) return <>{lead} — right where you were this time last month.</>
+  if (diff < 0) {
+    return (
+      <>
+        {lead} — <span className="highlight font-medium text-ink">{formatMoney(-diff)} less</span> than this time last month.
+      </>
+    )
+  }
+  return (
+    <>
+      {lead} —{" "}
+      <span className="font-medium text-ink underline decoration-danger decoration-2 underline-offset-[5px]">
+        {formatMoney(diff)} more
+      </span>{" "}
+      than this time last month.
+    </>
+  )
+}
+
+/** A ruler of the month's days: elapsed in ink, today marked in lime, Sundays taller. */
+function MonthStrip({ year, month, today, days, monthShort }: { year: number; month: number; today: number; days: number; monthShort: string }) {
+  const firstDow = new Date(year, month, 1).getDay()
+  const left = days - today
+  return (
+    <figure className="w-full lg:w-[320px]" aria-label={`Day ${today} of ${days}, ${left} ${left === 1 ? "day" : "days"} to go`}>
+      <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
+        <span>
+          Day <span className="text-ink">{today}</span> / {days}
+        </span>
+        <span>{left === 0 ? "Last day" : `${left} to go`}</span>
+      </div>
+      <div aria-hidden className="mt-3 flex h-9 items-end justify-between">
+        {Array.from({ length: days }, (_, i) => {
+          const day = i + 1
+          const sunday = (firstDow + i) % 7 === 0
+          if (day === today) {
+            return (
+              <span key={day} className="relative flex h-full w-[3px] justify-center rounded-full bg-ink">
+                <span className="absolute -top-1.5 size-3 rounded-full bg-lime ring-2 ring-ink" />
+              </span>
+            )
+          }
+          return (
+            <span
+              key={day}
+              className={`w-[2px] rounded-full ${day < today ? "bg-ink" : "bg-line-2"} ${sunday ? "h-[70%]" : "h-[38%]"}`}
+            />
+          )
+        })}
+      </div>
+      <div className="mt-2 flex justify-between font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+        <span>{monthShort} 1</span>
+        <span>
+          {monthShort} {days}
+        </span>
+      </div>
+    </figure>
+  )
 }
 
 export default function DashboardClient({ expenses, stats, userName, userId, budgetSummary }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [showAI, setShowAI] = useState(false)
-  const [prefillData, setPrefillData] = useState<{name?: string; amount?: number; category?: string; type?: string} | null>(null)
+  const [prefillData, setPrefillData] = useState<{ name?: string; amount?: number; category?: string; type?: string } | null>(null)
   const [aiQuery, setAiQuery] = useState("")
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
-  const { toast, showToast, hideToast } = useToast()
+  const [calendarView, setCalendarView] = useState<"chart" | "table">("chart")
   const router = useRouter()
+  const now = useNow()
 
   function handleSuccess() {
     router.refresh()
+    toast("Entry added")
   }
 
   async function handleDeleteExpense(id: string) {
@@ -100,7 +247,7 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
               amount: tx.amount,
               type: tx.type,
               category: tx.category,
-              date: date === "today" ? new Date().toISOString() : new Date(date).toISOString(),
+              date: (date === "today" ? new Date() : localNoon(date) ?? new Date()).toISOString(),
               status: "cleared",
               note: tx.note || null,
               userId,
@@ -108,285 +255,235 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
           })
         )
       )
-      showToast(`Added ${transactions.length} transaction${transactions.length > 1 ? "s" : ""} from receipt`, "success")
+      toast(`Added ${transactions.length} ${transactions.length === 1 ? "entry" : "entries"} from the receipt`, "success")
       router.refresh()
     } catch {
-      showToast("Failed to save some transactions", "error")
+      toast("Couldn't save some of those entries", "error")
     }
   }
 
-  const activeBudgets = budgetSummary.filter((b) => b.limit > 0)
-  const totalBudget = activeBudgets.reduce((sum, b) => sum + b.limit, 0)
-  const totalBudgetSpent = activeBudgets.reduce((sum, b) => sum + b.spent, 0)
+  function openNew() {
+    setPrefillData(null)
+    setShowModal(true)
+  }
+
+  function openAsk() {
+    setAiQuery("")
+    setShowAI(true)
+  }
+
+  // Global shortcuts: n new entry, s scan, a ask, / search the ledger.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return
+      // "/" needs Shift on some layouts; letters with Shift are left alone
+      if (e.shiftKey && e.key !== "/") return
+      const target = e.target as HTMLElement | null
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return
+      if (document.querySelector('[role="dialog"]')) return
+
+      const key = e.key.toLowerCase()
+      if (key === "n") {
+        e.preventDefault()
+        setPrefillData(null)
+        setShowModal(true)
+      } else if (key === "s") {
+        e.preventDefault()
+        setShowReceiptScanner(true)
+      } else if (key === "a") {
+        e.preventDefault()
+        setAiQuery("")
+        setShowAI(true)
+      } else if (key === "/") {
+        const search = document.getElementById("ledger-search")
+        if (!search) return
+        e.preventDefault()
+        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        search.scrollIntoView({ block: "center", behavior: reduced ? "auto" : "smooth" })
+        search.focus({ preventScroll: true })
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+
+  const month = useMemo(() => (now ? deriveMonth(expenses, now) : null), [expenses, now])
+  const budgetTotal = useMemo(
+    () => budgetSummary.filter((b) => b.limit > 0).reduce((sum, b) => sum + b.limit, 0),
+    [budgetSummary]
+  )
+  const firstName = userName.trim().split(/\s+/)[0] ?? ""
 
   return (
     <>
-      {/* Heading */}
-      <div style={{
-        marginBottom: "40px", display: "flex",
-        alignItems: "flex-end", justifyContent: "space-between",
-      }}>
-        <div>
-          <h1 style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: "clamp(2rem, 4vw, 3rem)",
-            fontWeight: 300, color: "#fff", margin: 0, lineHeight: 1.2,
-          }}>
-            Your{" "}
-            <span style={{
-              background: "linear-gradient(90deg, #d97706, #fbbf24, #f59e0b, #d97706)",
-              backgroundSize: "200% auto",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              fontWeight: 600,
-              animation: "shimmer 3s linear infinite",
-            }}>Dashboard</span>
-          </h1>
-          <p style={{ color: "#64748b", fontSize: "14px", marginTop: "8px" }}>
-            Here&apos;s where your money stands today.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAI(true)}
-          style={{
-            background: "rgba(99,102,241,0.1)",
-            border: "1px solid rgba(99,102,241,0.3)",
-            borderRadius: "14px",
-            padding: "12px 20px",
-            color: "#818cf8",
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: "14px",
-            fontWeight: 500,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          ✦ Ask AI
-        </button>
-        <button
-          onClick={() => setShowReceiptScanner(true)}
-          style={{
-            background: "rgba(16,185,129,0.1)",
-            border: "1px solid rgba(16,185,129,0.3)",
-            borderRadius: "14px",
-            padding: "12px 20px",
-            color: "#34d399",
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: "14px",
-            fontWeight: 500,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          📷 Scan Receipt
-        </button>
-        <button
-          onClick={() => setShowModal(true)}
-          style={{
-            background: "linear-gradient(135deg, #d97706, #fbbf24)",
-            border: "none", borderRadius: "14px",
-            padding: "12px 24px", color: "#000",
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: "14px", fontWeight: 500,
-            cursor: "pointer", whiteSpace: "nowrap",
-          }}
-        >+ Add Transaction</button>
-      </div>
-
-      {/* Stats */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-        gap: "16px", marginBottom: "32px",
-      }}>
-        {[
-          { label: "Total Balance", value: `₹${stats.balance.toLocaleString()}`, color: "#34d399" },
-          { label: "Spent This Month", value: `₹${stats.spent.toLocaleString()}`, color: "#f87171" },
-          { label: "Total Income", value: `₹${stats.income.toLocaleString()}`, color: "#fbbf24" },
-        ].map((stat) => (
-          <div key={stat.label} style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: "20px", padding: "28px",
-          }}>
-            <p style={{
-              color: "#64748b", fontSize: "11px",
-              textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "12px",
-            }}>{stat.label}</p>
-            <p style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "2.2rem", fontWeight: 600,
-              color: stat.color, margin: 0,
-            }}>{stat.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <AIInsights />
-
-      {/* Budget overview — only show if budgets are set */}
-      {activeBudgets.length > 0 && (
-        <div style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: "20px", padding: "24px 28px",
-          marginBottom: "32px",
-        }}>
-          {/* Header */}
-          <div style={{
-            display: "flex", alignItems: "center",
-            justifyContent: "space-between", marginBottom: "20px",
-          }}>
-            <div>
-              <h2 style={{ color: "#fff", fontSize: "15px", fontWeight: 500, margin: "0 0 4px" }}>
-                Budget Overview
-              </h2>
-              <p style={{ color: "#64748b", fontSize: "12px", margin: 0 }}>
-                ₹{totalBudgetSpent.toLocaleString()} of ₹{totalBudget.toLocaleString()} used this month
-              </p>
+      <div className="flex flex-col gap-5">
+        {/* 1 · greeting */}
+        <header className="rise grid gap-x-10 gap-y-7 pb-3 pt-4 sm:pt-8 lg:grid-cols-12 lg:items-end">
+          <div className="lg:col-span-8">
+            {month ? (
+              <p className="eyebrow text-muted">{month.dateLine}</p>
+            ) : (
+              <span aria-hidden className="skeleton block h-[13px] w-44" />
+            )}
+            <h1 className="mt-4 font-serif text-[clamp(40px,6.4vw,64px)] leading-[0.98] tracking-[-0.015em] text-ink">
+              {month ? (
+                month.greeting
+              ) : (
+                <span aria-hidden className="skeleton inline-block h-[0.72em] w-[5.4em] align-baseline" />
+              )}
+              {firstName ? (
+                <>
+                  , <span className="italic">{firstName}</span>.
+                </>
+              ) : (
+                "."
+              )}
+            </h1>
+            <div className="mt-4 min-h-[27px] max-w-[660px] text-pretty text-[16px] leading-relaxed text-ink-2 sm:text-[17px]">
+              {month ? (
+                <p>
+                  <Lede spent={month.monthSpent} lastToDate={month.lastMonthToDate} />
+                </p>
+              ) : (
+                <span aria-hidden className="skeleton block h-5 w-[min(520px,90%)]" />
+              )}
             </div>
-            <a href="/dashboard/budget" style={{
-              color: "#fbbf24", fontSize: "13px",
-              textDecoration: "none", fontFamily: "'DM Sans', sans-serif",
-            }}>
-              Manage →
-            </a>
+          </div>
+          <div className="lg:col-span-4 lg:justify-self-end">
+            {month ? (
+              <MonthStrip
+                year={month.year}
+                month={month.month}
+                today={month.today}
+                days={month.days}
+                monthShort={month.monthShort}
+              />
+            ) : (
+              <span aria-hidden className="skeleton block h-[78px] w-full lg:w-[320px]" />
+            )}
+          </div>
+        </header>
+
+        {/* 2 · balance + calendar */}
+        <div className="rise grid gap-5 [animation-delay:80ms] lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <BalanceCard
+              balance={stats.balance}
+              monthIncome={month?.monthIncome ?? null}
+              monthSpent={month?.monthSpent ?? null}
+              lastMonthSpent={month?.lastMonthSpent ?? null}
+              history={month?.history ?? []}
+              monthLabel={month?.monthName ?? null}
+            />
           </div>
 
-          {/* Overall bar */}
-          <div style={{
-            height: "6px", background: "rgba(255,255,255,0.06)",
-            borderRadius: "999px", overflow: "hidden", marginBottom: "24px",
-          }}>
-            <div style={{
-              height: "100%",
-              width: `${Math.min((totalBudgetSpent / totalBudget) * 100, 100)}%`,
-              background: totalBudgetSpent > totalBudget
-                ? "#f87171"
-                : totalBudgetSpent / totalBudget > 0.75
-                  ? "#fbbf24"
-                  : "linear-gradient(90deg, #34d399, #10b981)",
-              borderRadius: "999px",
-              transition: "width 0.5s ease",
-            }} />
-          </div>
-
-          {/* Category mini bars */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: "16px",
-          }}>
-            {activeBudgets.map((budget) => {
-              const pct = Math.min((budget.spent / budget.limit) * 100, 100)
-              const isOver = budget.spent > budget.limit
-              const color = categoryColor[budget.category] || "#94a3b8"
-
-              return (
-                <div key={budget.category}>
-                  <div style={{
-                    display: "flex", justifyContent: "space-between",
-                    alignItems: "center", marginBottom: "6px",
-                  }}>
-                    <span style={{ fontSize: "13px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "6px" }}>
-                      {categoryEmoji[budget.category]} {budget.category}
-                    </span>
-                    <span style={{
-                      fontSize: "12px",
-                      color: isOver ? "#f87171" : "#64748b",
-                      fontWeight: isOver ? 500 : 400,
-                    }}>
-                      {isOver
-                        ? `₹${(budget.spent - budget.limit).toLocaleString()} over`
-                        : `₹${(budget.limit - budget.spent).toLocaleString()} left`
-                      }
-                    </span>
-                  </div>
-                  <div style={{
-                    height: "4px", background: "rgba(255,255,255,0.06)",
-                    borderRadius: "999px", overflow: "hidden",
-                  }}>
-                    <div style={{
-                      height: "100%", width: `${pct}%`,
-                      background: isOver ? "#f87171" : color,
-                      borderRadius: "999px",
-                      transition: "width 0.4s ease",
-                    }} />
-                  </div>
+          {/* below lg the card is wide: title + a short reading guide sit beside the calendar */}
+          <section
+            aria-labelledby="calendar-title"
+            className="flex flex-col rounded-[24px] border border-line bg-card p-5 sm:grid sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:gap-x-8 sm:p-6 lg:col-span-5 lg:flex"
+          >
+            <div className="flex items-start justify-between gap-3 sm:flex-col sm:justify-start lg:flex-row lg:justify-between">
+              <div>
+                {month ? (
+                  <p className="eyebrow text-muted">
+                    {month.monthName} {month.year}
+                  </p>
+                ) : (
+                  <span aria-hidden className="skeleton block h-[13px] w-28" />
+                )}
+                <h2 id="calendar-title" className="mt-2.5 font-serif text-[30px] leading-none tracking-tight text-ink">
+                  Daily <span className="italic">spend</span>
+                </h2>
+                <p className="mt-3 hidden text-[13.5px] leading-snug text-muted sm:block lg:hidden">
+                  One dot per day. The bigger and darker the dot, the more went out.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalendarView((v) => (v === "chart" ? "table" : "chart"))}
+                aria-pressed={calendarView === "table"}
+                aria-label="Show daily spend as a table"
+                title="Table view"
+                className={`inline-flex size-9 shrink-0 items-center justify-center rounded-full transition sm:-ml-2 lg:ml-0 ${
+                  calendarView === "table" ? "bg-ink text-on-ink" : "text-muted hover:bg-paper-2 hover:text-ink"
+                }`}
+              >
+                <Table2 size={17} strokeWidth={1.8} />
+              </button>
+            </div>
+            <div className="mt-5 min-w-0 flex-1 sm:mt-0 lg:mt-5">
+              {month ? (
+                <DotCalendar
+                  year={month.year}
+                  month={month.month}
+                  values={month.calendar}
+                  today={month.today}
+                  view={calendarView}
+                />
+              ) : (
+                <div aria-hidden className="grid grid-cols-7 gap-1.5">
+                  {Array.from({ length: 35 }, (_, i) => (
+                    <span key={i} className="skeleton aspect-square rounded-lg" />
+                  ))}
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* No budgets set prompt */}
-      {activeBudgets.length === 0 && (
-        <div style={{
-          background: "rgba(234,179,8,0.04)",
-          border: "1px solid rgba(234,179,8,0.15)",
-          borderRadius: "16px", padding: "20px 28px",
-          marginBottom: "32px",
-          display: "flex", alignItems: "center",
-          justifyContent: "space-between",
-        }}>
-          <div>
-            <p style={{ color: "#fbbf24", fontSize: "14px", fontWeight: 500, margin: "0 0 4px" }}>
-              No budgets set yet
-            </p>
-            <p style={{ color: "#64748b", fontSize: "13px", margin: 0 }}>
-              Set spending limits to track your budget here
-            </p>
-          </div>
-          <a href="/dashboard/budget" style={{
-            background: "rgba(234,179,8,0.1)",
-            border: "1px solid rgba(234,179,8,0.2)",
-            borderRadius: "10px", padding: "8px 16px",
-            color: "#fbbf24", fontSize: "13px",
-            textDecoration: "none", whiteSpace: "nowrap",
-          }}>Set budgets →</a>
-        </div>
-      )}
-
-      <ExpenseCharts expenses={expenses} />
-
-      {/* Transactions */}
-      <div style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: "20px", overflow: "hidden",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center",
-          justifyContent: "space-between",
-          padding: "20px 28px",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-        }}>
-          <h2 style={{ color: "#fff", fontSize: "15px", fontWeight: 500, margin: 0 }}>
-            Recent Transactions
-          </h2>
-          <span style={{ color: "#475569", fontSize: "13px" }}>
-            {expenses.length} transactions
-          </span>
+              )}
+            </div>
+          </section>
         </div>
 
-        {expenses.length === 0 ? (
-          <div style={{ padding: "60px", textAlign: "center", color: "#475569", fontSize: "14px" }}>
-            No transactions yet. Add your first one!
+        {/* 3 · notes */}
+        <div className="rise pt-5 [animation-delay:160ms] empty:hidden">
+          <AIInsights />
+        </div>
+
+        {/* 4 · budgets + analytics */}
+        <div className="rise grid gap-5 pt-5 [animation-delay:220ms] lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <BudgetOverview budgets={budgetSummary} />
           </div>
-        ) : (
-          expenses.map((expense) => (
-            <ExpenseCard key={expense.id} expense={expense} />
-          ))
-        )}
+          <div className="lg:col-span-7">
+            <AnalyticsPanel expenses={expenses} budgetTotal={budgetTotal} />
+          </div>
+        </div>
+
+        {/* 5 · ledger */}
+        <div className="rise pt-5 [animation-delay:280ms]">
+          <TransactionLedger
+            expenses={expenses}
+            onDelete={async (id: string) => {
+              await handleDeleteExpense(id)
+              toast("Entry deleted")
+            }}
+          />
+        </div>
       </div>
+
+      <Dock
+        onNew={openNew}
+        onScan={() => setShowReceiptScanner(true)}
+        onAsk={openAsk}
+        voice={
+          <VoiceButton
+            variant="dock"
+            onAddExpense={(data) => {
+              setPrefillData(data)
+              setShowModal(true)
+            }}
+            onDeleteExpense={handleDeleteExpense}
+            onNavigate={handleNavigate}
+            onAIQuery={handleAIQuery}
+            onSetBudget={handleSetBudget}
+          />
+        }
+      />
+      <Toaster />
 
       {showModal && (
         <AddExpenseModal
-          onClose={() => { setShowModal(false); setPrefillData(null) }}
+          onClose={() => {
+            setShowModal(false)
+            setPrefillData(null)
+          }}
           onSuccess={handleSuccess}
           userId={userId}
           prefill={prefillData}
@@ -395,7 +492,10 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
 
       {showAI && (
         <AIAssistant
-          onClose={() => { setShowAI(false); setAiQuery("") }}
+          onClose={() => {
+            setShowAI(false)
+            setAiQuery("")
+          }}
           initialQuery={aiQuery}
           onPrefillExpense={(data) => {
             setShowAI(false)
@@ -406,26 +506,9 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
         />
       )}
 
-      <VoiceButton
-        floating={true}
-        onAddExpense={(data) => {
-          setPrefillData(data)
-          setShowModal(true)
-        }}
-        onDeleteExpense={handleDeleteExpense}
-        onNavigate={handleNavigate}
-        onAIQuery={handleAIQuery}
-        onSetBudget={handleSetBudget}
-      />
-
       {showReceiptScanner && (
-        <ReceiptScanner
-          onTransactionsFound={handleReceiptTransactions}
-          onClose={() => setShowReceiptScanner(false)}
-        />
+        <ReceiptScanner onTransactionsFound={handleReceiptTransactions} onClose={() => setShowReceiptScanner(false)} />
       )}
-
-      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
     </>
   )
 }

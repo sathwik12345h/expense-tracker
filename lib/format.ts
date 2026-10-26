@@ -116,3 +116,15 @@ export function monthProgress(now: Date) {
   const total = daysInMonth(now.getFullYear(), now.getMonth())
   return Math.min(1, (now.getDate() - 1 + now.getHours() / 24) / total)
 }
+
+/**
+ * "YYYY-MM-DD" → that calendar day at local noon. `new Date("YYYY-MM-DD")`
+ * means UTC midnight, which lands on the previous day for anyone west of
+ * Greenwich; noon keeps the entry on the day the person picked.
+ */
+export function localNoon(value: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!m) return null
+  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12)
+  return Number.isNaN(date.getTime()) ? null : date
+}
