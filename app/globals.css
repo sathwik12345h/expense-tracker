@@ -1,26 +1,393 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ─────────────────────────────────────────────────────────────
+   Spendwise — "ledger & highlighter"
+   Paper, ink, and one lime marker. Category hues validated for
+   colour-blind separation (all-pairs CVD ΔE ≥ 8) on the card surface.
+   ───────────────────────────────────────────────────────────── */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: #f3f0e8;
+  --color-paper-2: #eae5d9;
+  --color-paper-3: #e1dbcc;
+  --color-card: #fbfaf6;
+  --color-ink: #16150f;
+  --color-ink-2: #3b3a33;
+  --color-ink-soft: #25241d;
+  --color-muted: #6b675d;
+  --color-faint: #a39e90;
+  --color-line: #ddd6c7;
+  --color-line-2: #cfc7b5;
+  --color-on-ink: #f3f0e8;
+  --color-on-ink-muted: #b4ae9f;
+
+  --color-lime: #d4f36b;
+  --color-lime-2: #c4e852;
+
+  --color-income: #1f7a4d;
+  --color-danger: #c4352a;
+  --color-warn: #996100;
+  --color-warn-fill: #f0b429;
+
+  --color-cat-food: #eda100;
+  --color-cat-travel: #3fa7d6;
+  --color-cat-shopping: #e87ba4;
+  --color-cat-bills: #2f5597;
+  --color-cat-entertainment: #a8385e;
+  --color-cat-health: #7a8c00;
+  --color-cat-other: #8f8a7e;
+  --color-cat-income: #1f7a4d;
+
+  --font-sans: var(--ff-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--ff-serif), "Times New Roman", serif;
+  --font-mono: var(--ff-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --shadow-paper: 0 1px 0 rgb(22 21 15 / 0.04), 0 18px 40px -18px rgb(22 21 15 / 0.28);
+  --shadow-lift: 0 1px 0 rgb(22 21 15 / 0.05), 0 30px 60px -24px rgb(22 21 15 / 0.35);
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    /* faint paper grain */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E");
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: var(--color-lime);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  .on-ink :focus-visible {
+    outline-color: var(--color-lime);
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Type helpers ─────────────────────────────────────────── */
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lime marker stroke that "draws" across a word. */
+.highlight {
+  background-image: linear-gradient(
+    100deg,
+    transparent 0.2em,
+    var(--color-lime) 0.3em,
+    var(--color-lime) calc(100% - 0.25em),
+    transparent calc(100% - 0.12em)
+  );
+  background-repeat: no-repeat;
+  background-position: 0 78%;
+  background-size: 0% 62%;
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: draw-highlight 1s var(--ease-out-quint) 0.5s forwards;
+}
+
+@keyframes draw-highlight {
+  to {
+    background-size: 100% 62%;
+  }
+}
+
+/* ── Paper & receipts ─────────────────────────────────────── */
+
+/* Torn / zig-zag bottom edge, like a till receipt. */
+.torn-bottom {
+  --z: 7px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--z) + 1px) no-repeat,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / calc(2 * var(--z)) var(--z) repeat-x;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--z) + 1px) no-repeat,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / calc(2 * var(--z)) var(--z) repeat-x;
+  padding-bottom: calc(var(--z) + 8px);
+}
+
+.torn-top {
+  --z: 7px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) bottom / 100% calc(100% - var(--z) + 1px) no-repeat,
+    conic-gradient(from -45deg at 50% 100%, #000 90deg, #0000 0) top / calc(2 * var(--z)) var(--z) repeat-x;
+  mask:
+    linear-gradient(#000 0 0) bottom / 100% calc(100% - var(--z) + 1px) no-repeat,
+    conic-gradient(from -45deg at 50% 100%, #000 90deg, #0000 0) top / calc(2 * var(--z)) var(--z) repeat-x;
+}
+
+.drop-paper {
+  filter: drop-shadow(0 1px 0 rgb(22 21 15 / 0.05)) drop-shadow(0 14px 22px rgb(22 21 15 / 0.14));
+}
+
+.perforation {
+  border-top: 1.5px dashed var(--color-line-2);
+}
+
+.leader {
+  flex: 1 1 auto;
+  min-width: 12px;
+  border-bottom: 1.5px dotted var(--color-line-2);
+  transform: translateY(-4px);
+}
+
+/* ── Ticker tape ─────────────────────────────────────────── */
+
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 48s) linear infinite;
+}
+
+.marquee-reverse {
+  animation-direction: reverse;
+}
+
+@keyframes marquee {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* ── Ruler slider (budget limits) ────────────────────────── */
+
+.ruler {
+  --fill: 0%;
+  --accent: var(--color-ink);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 34px;
+  background: transparent;
+  touch-action: pan-y;
+}
+
+.ruler::-webkit-slider-runnable-track {
+  height: 34px;
+  background:
+    linear-gradient(var(--accent), var(--accent)) 0 14px / var(--fill) 6px no-repeat,
+    linear-gradient(var(--color-paper-2), var(--color-paper-2)) 0 14px / 100% 6px no-repeat,
+    repeating-linear-gradient(90deg, var(--color-line-2) 0 1px, transparent 1px 10%) 0 100% / 100% 12px no-repeat,
+    repeating-linear-gradient(90deg, var(--color-line) 0 1px, transparent 1px 2.5%) 0 100% / 100% 6px no-repeat;
+}
+
+.ruler::-moz-range-track {
+  height: 34px;
+  background:
+    linear-gradient(var(--color-paper-2), var(--color-paper-2)) 0 14px / 100% 6px no-repeat,
+    repeating-linear-gradient(90deg, var(--color-line-2) 0 1px, transparent 1px 10%) 0 100% / 100% 12px no-repeat,
+    repeating-linear-gradient(90deg, var(--color-line) 0 1px, transparent 1px 2.5%) 0 100% / 100% 6px no-repeat;
+}
+
+.ruler::-moz-range-progress {
+  height: 6px;
+  background: var(--accent);
+}
+
+.ruler::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 34px;
+  border: 0;
+  background:
+    radial-gradient(circle at 50% 17px, var(--color-lime) 0 4.5px, var(--color-ink) 5px 8px, transparent 8.5px),
+    linear-gradient(var(--color-ink), var(--color-ink)) 50% 0 / 2px 100% no-repeat;
+  transition: transform 160ms var(--ease-spring);
+}
+
+.ruler::-moz-range-thumb {
+  width: 18px;
+  height: 34px;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 17px, var(--color-lime) 0 4.5px, var(--color-ink) 5px 8px, transparent 8.5px),
+    linear-gradient(var(--color-ink), var(--color-ink)) 50% 0 / 2px 100% no-repeat;
+}
+
+.ruler:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.ruler:focus-visible {
+  outline-offset: 4px;
+}
+
+/* ── Motion ──────────────────────────────────────────────── */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+}
+
+.rise {
+  animation: rise 0.8s var(--ease-out-quint) backwards;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in-right {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+@keyframes sheet-in-up {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.97);
+  }
+}
+
+@keyframes stamp {
+  0% {
+    transform: scale(1.18) rotate(-6deg);
+  }
+  55% {
+    transform: scale(0.94) rotate(-1deg);
+  }
+  100% {
+    transform: scale(1) rotate(-2deg);
+  }
+}
+
+@keyframes roll-in {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes scan-line {
+  0%,
+  100% {
+    top: 4%;
+  }
+  50% {
+    top: 92%;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes wave-bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-paper-2) 25%, var(--color-paper-3) 50%, var(--color-paper-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: 6px;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .marquee {
+    animation: none;
+  }
 }

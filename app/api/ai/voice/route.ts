@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 The user said: "${transcript}"
 
 Recent expenses for context:
-${recentExpenses.map((e, i) => `${i + 1}. ${e.name} Rs.${e.amount} ${e.category} ${e.type} (id: ${e.id})`).join("\n")}
+${recentExpenses.map((e, i) => `${i + 1}. ${e.name} $${e.amount} ${e.category} ${e.type} (id: ${e.id})`).join("\n")}
 
 Parse the voice command and respond with ONLY a JSON object, no markdown:
 {
@@ -59,16 +59,16 @@ Rules:
   - "spent" or "bought" or "paid" or "purchased" or "expense" → type: "expense"
   - If user says "I got" or "I received" or "income of" → ALWAYS set type to "income"
 - For categories:
-  - food/restaurant/cafe/grocery/swiggy/zomato → Food
-  - travel/uber/ola/flight/cab → Travel
-  - netflix/spotify/movie/entertainment → Entertainment
+  - food/restaurant/cafe/grocery/doordash/ubereats/grubhub/starbucks/swiggy/zomato → Food
+  - travel/uber/lyft/subway/gas/flight/cab/ola → Travel
+  - netflix/spotify/hulu/disney/movie/entertainment → Entertainment
   - electricity/rent/phone bill/wifi → Bills
   - medicine/doctor/hospital → Health
   - salary/income/received/got/earned → Income, AND set type to "income"
-  - shopping/amazon/flipkart → Shopping
+  - shopping/amazon/target/walmart/costco/flipkart → Shopping
 - If today is mentioned or no date given → use "today"
 - Always fill confirmationMessage with natural language
-- For income: say "Adding income of Rs.X" not "Adding expense"
+- For income: say "Adding income of $X" not "Adding expense"
 - For delete by name: search the recent expenses list for a matching name and use that expense's id`
 
     const completion = await groq.chat.completions.create({

@@ -61,18 +61,18 @@ export async function POST(request: Request) {
       role: "system" as const,
       content: `You are a helpful AI financial assistant for Spendwise.
 
-User's financial data for ${new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}:
-- Total spent: ₹${totalSpent.toLocaleString()}
-- Total income: ₹${totalIncome.toLocaleString()}
-- Net balance: ₹${(totalIncome - totalSpent).toLocaleString()}
+User's financial data for ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}:
+- Total spent: $${totalSpent.toLocaleString("en-US")}
+- Total income: $${totalIncome.toLocaleString("en-US")}
+- Net balance: $${(totalIncome - totalSpent).toLocaleString("en-US")}
 
-Spending by category: ${Object.entries(categoryBreakdown).map(([c, a]) => `${c}: ₹${(a as number).toLocaleString()}`).join(", ")}
+Spending by category: ${Object.entries(categoryBreakdown).map(([c, a]) => `${c}: $${(a as number).toLocaleString("en-US")}`).join(", ")}
 
-Budget status: ${budgetsWithSpent.map((b) => `${b.category}: ₹${b.spent.toLocaleString()} of ₹${b.limit.toLocaleString()} (${b.limit > 0 ? Math.round((b.spent / b.limit) * 100) : 0}%)`).join(", ")}
+Budget status: ${budgetsWithSpent.map((b) => `${b.category}: $${b.spent.toLocaleString("en-US")} of $${b.limit.toLocaleString("en-US")} (${b.limit > 0 ? Math.round((b.spent / b.limit) * 100) : 0}%)`).join(", ")}
 
-Recent transactions: ${expenses.slice(0, 5).map((e) => `${e.name} ₹${e.amount} ${e.category}`).join(", ")}
+Recent transactions: ${expenses.slice(0, 5).map((e) => `${e.name} $${e.amount} ${e.category}`).join(", ")}
 
-Give concise, personalized financial advice using their real data. Use ₹ for currency. Be friendly and specific. Keep responses under 150 words.
+Give concise, personalized financial advice using their real data. Use $ (US dollars) for currency. Be friendly and specific. Keep responses under 150 words.
 
 IMPORTANT formatting rules:
 - Never generate markdown tables or ASCII charts

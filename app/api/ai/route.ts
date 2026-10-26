@@ -60,16 +60,16 @@ export async function POST(request: Request) {
     const prompt = `You are a financial AI assistant for Spendwise expense tracker.
 The user asked: "${query}"
 
-Their financial data for ${new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}:
-Total spent: Rs.${totalSpent}
-Total income: Rs.${totalIncome}
-Net: Rs.${totalIncome - totalSpent}
+Their financial data for ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}:
+Total spent: $${totalSpent}
+Total income: $${totalIncome}
+Net: $${totalIncome - totalSpent}
 
-Spending by category: ${Object.entries(categoryBreakdown).map(([c, a]) => `${c}: Rs.${a}`).join(", ")}
+Spending by category: ${Object.entries(categoryBreakdown).map(([c, a]) => `${c}: $${a}`).join(", ")}
 
-Budget status: ${budgetsWithSpent.map((b) => `${b.category}: spent Rs.${b.spent} of Rs.${b.limit}`).join(", ")}
+Budget status: ${budgetsWithSpent.map((b) => `${b.category}: spent $${b.spent} of $${b.limit}`).join(", ")}
 
-Recent transactions: ${expenses.slice(0, 5).map((e) => `${e.name} Rs.${e.amount} ${e.category} ${e.type}`).join(", ")}
+Recent transactions: ${expenses.slice(0, 5).map((e) => `${e.name} $${e.amount} ${e.category} ${e.type}`).join(", ")}
 
 Respond with ONLY a JSON object, no markdown, no explanation:
 {

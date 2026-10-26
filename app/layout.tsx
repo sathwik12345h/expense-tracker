@@ -1,25 +1,30 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata, Viewport } from "next"
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google"
+import "./globals.css"
+
+const sans = Geist({ subsets: ["latin"], variable: "--ff-sans", display: "swap" })
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--ff-mono", display: "swap" })
+const serif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--ff-serif",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: "Spendwise — Personal Finance Tracker",
   description: "Track expenses, manage budgets, master your money.",
-};
+}
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = {
+  themeColor: "#f3f0e8",
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=DM+Sans:wght@300;400;500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="antialiased">{children}</body>
+    <html lang="en" className={`${sans.variable} ${mono.variable} ${serif.variable}`}>
+      <body className="min-h-dvh antialiased">{children}</body>
     </html>
-  );
+  )
 }

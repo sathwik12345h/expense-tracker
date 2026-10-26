@@ -8,23 +8,14 @@ async function getUpcomingEvents() {
     const now = new Date()
     const year = now.getFullYear()
 
-    const [usRes, inRes] = await Promise.all([
-      fetch(
-        `https://calendarific.com/api/v2/holidays?api_key=${process.env.CALENDARIFIC_API_KEY}&country=US&year=${year}&type=national,religious`,
-        { next: { revalidate: 86400 } }
-      ),
-      fetch(
-        `https://calendarific.com/api/v2/holidays?api_key=${process.env.CALENDARIFIC_API_KEY}&country=IN&year=${year}&type=national,religious`,
-        { next: { revalidate: 86400 } }
-      ),
-    ])
+    const usRes = await fetch(
+      `https://calendarific.com/api/v2/holidays?api_key=${process.env.CALENDARIFIC_API_KEY}&country=US&year=${year}&type=national,religious`,
+      { next: { revalidate: 86400 } }
+    )
 
-    const [usData, inData] = await Promise.all([usRes.json(), inRes.json()])
+    const usData = await usRes.json()
 
-    const allHolidays = [
-      ...(usData.response?.holidays || []),
-      ...(inData.response?.holidays || []),
-    ] as Array<{ name: string; date: { iso: string }; type: string[] }>
+    const allHolidays = (usData.response?.holidays || []) as Array<{ name: string; date: { iso: string }; type: string[] }>
 
     // Deduplicate by name
     const seen = new Set<string>()
@@ -61,7 +52,7 @@ function getHolidayEmoji(name: string): string {
   if (n.includes("thanksgiving")) return "🦃"
   if (n.includes("halloween")) return "🎃"
   if (n.includes("easter")) return "🐣"
-  if (n.includes("independence")) return "🇮🇳"
+  if (n.includes("independence")) return "🇺🇸"
   if (n.includes("memorial")) return "🪖"
   if (n.includes("labor")) return "👷"
   if (n.includes("valentine")) return "❤️"
@@ -79,14 +70,15 @@ function getHolidayEmoji(name: string): string {
 
 function estimateSavings(name: string): number {
   const n = name.toLowerCase()
-  if (n.includes("christmas")) return 5000
-  if (n.includes("new year")) return 3000
-  if (n.includes("thanksgiving")) return 2000
-  if (n.includes("diwali")) return 8000
-  if (n.includes("eid")) return 4000
-  if (n.includes("holi")) return 2000
-  if (n.includes("navratri")) return 3000
-  return 1500
+  if (n.includes("christmas")) return 600
+  if (n.includes("new year")) return 300
+  if (n.includes("thanksgiving")) return 250
+  if (n.includes("halloween")) return 80
+  if (n.includes("valentine")) return 120
+  if (n.includes("diwali")) return 300
+  if (n.includes("eid")) return 250
+  if (n.includes("hanukkah")) return 300
+  return 150
 }
 
 export async function GET() {
@@ -160,19 +152,19 @@ export async function GET() {
 
     const prompt = `You are a proactive financial AI for Spendwise. Analyze this data and generate smart alerts.
 
-Current month (${now.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}):
+Current month (${now.toLocaleDateString("en-US", { month: "long", year: "numeric" })}):
 - Day ${dayOfMonth} of ${daysInMonth}
-- Total spent: Rs.${totalSpent.toLocaleString()}
-- Total income: Rs.${totalIncome.toLocaleString()}
-- Projected month-end spending: Rs.${Math.round(projectedMonthlySpend).toLocaleString()}
+- Total spent: $${totalSpent.toLocaleString("en-US")}
+- Total income: $${totalIncome.toLocaleString("en-US")}
+- Projected month-end spending: $${Math.round(projectedMonthlySpend).toLocaleString("en-US")}
 - Remaining days: ${remainingDays}
 
-Spending by category this month: ${Object.entries(categoryBreakdown).map(([c, a]) => `${c}: Rs.${a}`).join(", ")}
-Last month by category: ${Object.entries(lastMonthByCategory).map(([c, a]) => `${c}: Rs.${a}`).join(", ")}
+Spending by category this month: ${Object.entries(categoryBreakdown).map(([c, a]) => `${c}: $${a}`).join(", ")}
+Last month by category: ${Object.entries(lastMonthByCategory).map(([c, a]) => `${c}: $${a}`).join(", ")}
 
-Budget status: ${budgetsWithSpent.map((b) => `${b.category}: ${Math.round(b.percentage)}% used (Rs.${b.spent} of Rs.${b.limit})`).join(", ")}
+Budget status: ${budgetsWithSpent.map((b) => `${b.category}: ${Math.round(b.percentage)}% used ($${b.spent} of $${b.limit})`).join(", ")}
 
-Upcoming festivals/holidays in next 60 days: ${upcomingEvents.map((e) => `${e.name} in ${e.daysUntil} days (estimated savings needed: Rs.${e.savingsNeeded})`).join(", ") || "None"}
+Upcoming festivals/holidays in next 60 days: ${upcomingEvents.map((e) => `${e.name} in ${e.daysUntil} days (estimated savings needed: $${e.savingsNeeded})`).join(", ") || "None"}
 
 Respond with ONLY a JSON array of alerts, no markdown:
 [

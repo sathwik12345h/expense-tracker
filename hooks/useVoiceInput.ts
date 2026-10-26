@@ -18,7 +18,7 @@ function parseNumberWords(text: string): string {
     sixty: 60, seventy: 70, eighty: 80, ninety: 90,
   }
   const multipliers: Record<string, number> = {
-    hundred: 100, thousand: 1000, lakh: 100000, million: 1000000,
+    hundred: 100, thousand: 1000, million: 1000000,
   }
 
   let result = text.toLowerCase()
@@ -52,7 +52,7 @@ function parseNumberWords(text: string): string {
   if (hasNumber && total > 0) {
     // Replace the number words with the actual number in the text
     result = result.replace(
-      /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|and)(\s+(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|and))*\b/gi,
+      /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|and)(\s+(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|and))*\b/gi,
       String(total)
     )
   }
@@ -80,7 +80,7 @@ export function useVoiceInput() {
 
     recognition.continuous = false
     recognition.interimResults = false
-    recognition.lang = "en-IN"
+    recognition.lang = "en-US"
 
     recognition.onstart = () => {
       setIsListening(true)
