@@ -10,7 +10,8 @@ import { formatMoney } from "@/lib/format"
 
 interface Props {
   onAddExpense: (data: { name?: string; amount?: number; category?: string; type?: string }) => void
-  onDeleteExpense: (id: string) => void
+  /** May return a promise; a rejection is reported instead of "Entry deleted". */
+  onDeleteExpense: (id: string) => Promise<unknown> | void
   onNavigate: (page: string) => void
   onAIQuery: (query: string) => void
   onSetBudget: (category: string, amount: number) => void
@@ -62,7 +63,7 @@ function Spinner({ className = "" }: { className?: string }) {
 export default function VoiceButton({
   onAddExpense, onDeleteExpense, onNavigate, onAIQuery, onSetBudget, variant = "dock",
 }: Props) {
-  const { isListening, transcript, processing, error, startListening, stopListening } = useVoiceInput()
+  const { isListening, transcript, processing, error, failedStarts, startListening, stopListening } = useVoiceInput()
   // the popover lingers after a result; this remembers which result was dismissed
   const [dismissed, setDismissed] = useState<string | null>(null)
   // between the click and the mic actually opening (permission prompt, warm-up)
@@ -81,9 +82,16 @@ export default function VoiceButton({
       }
       const confirmed = window.confirm(`${confirmationMessage}\n\nAre you sure?`)
       if (!confirmed) return
-      onDeleteExpense(data.expenseId)
-      toast("Entry deleted", "success")
-      speak("Done. Expense deleted.")
+      Promise.resolve(onDeleteExpense(data.expenseId)).then(
+        () => {
+          toast("Entry deleted", "success")
+          speak("Done. Expense deleted.")
+        },
+        () => {
+          toast("Couldn't delete that entry", "error")
+          speak("Sorry, I could not delete that expense")
+        }
+      )
       return
     }
 
@@ -126,7 +134,8 @@ export default function VoiceButton({
   }
 
   const busy = isListening || processing
-  const snapshot = `${transcript}\u0000${error}`
+  // failedStarts moves even when a retry fails with the same message
+  const snapshot = `${transcript}\u0000${error}\u0000${failedStarts}`
   const hasResult = Boolean(transcript || error)
   const starting = armedFrom !== null && !busy && armedFrom === snapshot
   const open = busy || starting || (hasResult && dismissed !== snapshot)

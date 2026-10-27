@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur-md">
+      <header data-app-shell className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-3 px-4 sm:grid sm:h-[68px] sm:grid-cols-[1fr_auto_1fr] sm:gap-6 sm:px-6 lg:px-8">
           {/* the wordmark doesn't fit beside the tabs on a phone — the receipt mark stands in */}
           <Link

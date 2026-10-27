@@ -20,6 +20,8 @@ interface Props<T extends string> {
 }
 
 const heights = { sm: "h-8 text-[12.5px]", md: "h-10 text-[13.5px]", lg: "h-12 text-[15px]" }
+// sm options are 24px to look tight; their hit area spills over the track padding to reach 32px
+const hitArea = { sm: "before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']", md: "", lg: "" }
 
 /**
  * Equal-width segmented control with a sliding ink "tab". Behaves like a
@@ -70,7 +72,7 @@ export function Segmented<T extends string>({
             aria-checked={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(o.value)}
-            className={`relative z-10 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 font-medium transition-colors duration-300 ${active ? activeText : idleText}`}
+            className={`relative z-10 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 font-medium transition-colors duration-300 ${hitArea[size]} ${active ? activeText : idleText}`}
           >
             {Icon && <Icon size={size === "lg" ? 17 : 15} strokeWidth={1.9} aria-hidden />}
             {o.label}

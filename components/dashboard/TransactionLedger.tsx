@@ -257,7 +257,8 @@ export default function TransactionLedger({
   const [type, setType] = useState<TypeFilter>("all")
   const [cats, setCats] = useState<string[]>([])
   const [limit, setLimit] = useState(PAGE)
-  const [pending, setPending] = useState<{ id: string; state: Exclude<RowState, "idle"> } | null>(null)
+  // per row, so a slow delete on one row and a question on another don't trample each other
+  const [rowStates, setRowStates] = useState<ReadonlyMap<string, Exclude<RowState, "idle">>>(() => new Map())
   const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set())
 
   // typing stays responsive on long ledgers: the list catches up a beat later
@@ -344,18 +345,36 @@ export default function TransactionLedger({
     resetPaging()
   }
 
+  function setRowState(id: string, state: Exclude<RowState, "idle"> | null) {
+    setRowStates((prev) => {
+      const next = new Map(prev)
+      if (state) next.set(id, state)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  // one question open at a time; rows already deleting carry on
+  function askDelete(id: string) {
+    setRowStates((prev) => {
+      const next = new Map([...prev].filter(([, s]) => s !== "confirm"))
+      next.set(id, "confirm")
+      return next
+    })
+  }
+
   async function confirmDelete(id: string) {
-    setPending({ id, state: "deleting" })
+    setRowState(id, "deleting")
     try {
       await onDelete(id)
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      setPending({ id, state: "leaving" })
+      setRowState(id, "leaving")
       window.setTimeout(() => {
         setRemoved((prev) => new Set(prev).add(id))
-        setPending((p) => (p?.id === id ? null : p))
+        setRowState(id, null)
       }, reduced ? 0 : 320)
     } catch {
-      setPending(null)
+      setRowState(id, null)
       toast("Couldn't delete that entry", "error")
     }
   }
@@ -551,9 +570,9 @@ export default function TransactionLedger({
                           key={r.id}
                           row={r}
                           query={q}
-                          state={pending?.id === r.id ? pending.state : "idle"}
-                          onAsk={() => setPending({ id: r.id, state: "confirm" })}
-                          onCancel={() => setPending(null)}
+                          state={rowStates.get(r.id) ?? "idle"}
+                          onAsk={() => askDelete(r.id)}
+                          onCancel={() => setRowState(r.id, null)}
                           onConfirm={() => confirmDelete(r.id)}
                         />
                       ))}

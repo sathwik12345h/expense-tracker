@@ -181,13 +181,13 @@ export default function CategoryMosaic({
                           {t.category}
                         </span>
                         {layout.sharePlace === "top" && (
-                          <span className="font-mono text-[11px] leading-none opacity-80">{shareText}</span>
+                          <span className="font-mono text-[11px] leading-none">{shareText}</span>
                         )}
                       </span>
                       <span className="flex items-end justify-between gap-2">
                         <span className="flex flex-col">
                           {t.count != null && layout.sharePlace === "serif" && (
-                            <span className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.12em] opacity-75">
+                            <span className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.12em]">
                               {t.count} {t.count === 1 ? "entry" : "entries"}
                             </span>
                           )}
@@ -196,7 +196,7 @@ export default function CategoryMosaic({
                           </span>
                         </span>
                         {layout.sharePlace === "inline" && (
-                          <span className="font-mono text-[11px] leading-none opacity-80">{shareText}</span>
+                          <span className="font-mono text-[11px] leading-none">{shareText}</span>
                         )}
                         {layout.sharePlace === "serif" && (
                           <span className="-mb-1 font-serif text-[46px] italic leading-[0.8] tracking-tight opacity-90">

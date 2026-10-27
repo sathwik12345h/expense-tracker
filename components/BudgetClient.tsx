@@ -34,6 +34,9 @@ const OVERALL_STEP = 50
 const LIMIT_STEP = 10
 const TYPED_MAX = 1_000_000
 
+/** Sums of typed cents drift (1.67 + 372.10 + 126.23 = 500.00000000000006); compare in whole cents. */
+const toCents = (n: number) => Math.round(n * 100) / 100
+
 // Same hatch the pace meters use once a line goes over — a non-colour cue.
 const HATCH = "repeating-linear-gradient(45deg, rgb(255 255 255 / 0.4) 0 2px, transparent 2px 6px)"
 const OVER_HATCH = "repeating-linear-gradient(45deg, rgb(196 53 42 / 0.55) 0 2px, transparent 2px 6px)"
@@ -245,9 +248,9 @@ function EnvelopeStrip({
   onPick: (category: string) => void
 }) {
   const filled = envelopes.filter((e) => e.limit > 0)
-  const assigned = filled.reduce((s, e) => s + e.limit, 0)
+  const assigned = toCents(filled.reduce((s, e) => s + e.limit, 0))
   const total = Math.max(overall, assigned, 1)
-  const free = overall - assigned
+  const free = toCents(overall - assigned)
   const over = assigned > overall
   const pctAssigned = overall > 0 ? Math.round((assigned / overall) * 100) : 0
 
@@ -610,7 +613,7 @@ export default function BudgetClient({ budgets, userId }: Props) {
   // What the server holds, as far as we know — the baseline for "unsaved".
   const [committed, setCommitted] = useState<Record<string, number>>(() => toLimits(budgets))
   const [overallBudget, setOverallBudget] = useState(
-    budgets.reduce((sum, b) => sum + (b.limit || 0), 0) || 3000
+    toCents(budgets.reduce((sum, b) => sum + (b.limit || 0), 0)) || 3000
   )
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -618,8 +621,8 @@ export default function BudgetClient({ budgets, userId }: Props) {
   const flashTimer = useRef<number | undefined>(undefined)
 
   const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0)
-  const totalAllocated = budgets.reduce((sum, b) => sum + (limits[b.category] || 0), 0)
-  const free = overallBudget - totalAllocated
+  const totalAllocated = toCents(budgets.reduce((sum, b) => sum + (limits[b.category] || 0), 0))
+  const free = toCents(overallBudget - totalAllocated)
   // The API can't store a zero limit, so only positive limits count as changes.
   const dirty = budgets.some((b) => {
     const v = limits[b.category] || 0

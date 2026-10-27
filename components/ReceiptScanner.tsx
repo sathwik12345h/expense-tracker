@@ -153,6 +153,7 @@ export default function ReceiptScanner({ onTransactionsFound, onClose }: Props) 
   const alive = useRef(true)
   const acceptFileRef = useRef<(file: File) => void>(() => {})
   const bodyRef = useRef<HTMLDivElement>(null)
+  const added = useRef(false)
 
   const phase: Phase = scanning ? "scanning" : error ? "error" : result ? "result" : "idle"
 
@@ -275,7 +276,9 @@ export default function ReceiptScanner({ onTransactionsFound, onClose }: Props) 
   }
 
   function handleAddSelected(close: () => void) {
-    if (!result) return
+    // one shot: a double click during the closing animation must not add every line twice
+    if (!result || added.current) return
+    added.current = true
     const selected = result.transactions.filter((_, i) => selectedTransactions.has(i))
     onTransactionsFound(selected, result.receiptDate)
     close()

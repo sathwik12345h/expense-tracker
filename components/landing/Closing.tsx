@@ -45,11 +45,11 @@ export default function Closing() {
       <footer className="relative overflow-hidden pt-16">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <Logo />
-          <nav className="flex gap-6 text-[14px] text-ink-2">
-            <a href="#how" className="hover:text-ink">How it works</a>
-            <a href="#features" className="hover:text-ink">Features</a>
-            <Link href="/login" className="hover:text-ink">Sign in</Link>
-            <Link href="/signup" className="hover:text-ink">Create account</Link>
+          <nav className="flex flex-wrap gap-x-6 gap-y-2 text-[14px] text-ink-2">
+            <a href="#how" className="whitespace-nowrap hover:text-ink">How it works</a>
+            <a href="#features" className="whitespace-nowrap hover:text-ink">Features</a>
+            <Link href="/login" className="whitespace-nowrap hover:text-ink">Sign in</Link>
+            <Link href="/signup" className="whitespace-nowrap hover:text-ink">Create account</Link>
           </nav>
         </div>
         <div className="mx-auto mt-6 max-w-[1280px] px-5 sm:px-8">

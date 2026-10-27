@@ -14,7 +14,7 @@
   --color-ink: #16150f;
   --color-ink-2: #3b3a33;
   --color-ink-soft: #25241d;
-  --color-muted: #6b675d;
+  --color-muted: #625e55; /* ≥ 4.5:1 on paper, paper-2, paper-3 and card */
   --color-faint: #a39e90;
   --color-line: #ddd6c7;
   --color-line-2: #cfc7b5;
@@ -53,6 +53,13 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+  }
+
+  /* In the app, focus scrolling keeps controls clear of the sticky header and
+     the floating dock / budget save bar instead of parking them underneath. */
+  html:has([data-app-shell]) {
+    scroll-padding-top: 84px;
+    scroll-padding-bottom: 104px;
   }
 
   body {

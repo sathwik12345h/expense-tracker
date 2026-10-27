@@ -48,7 +48,8 @@ export default function DotCalendar({ year, month, values, today, view = "chart"
   const focusDay = cursor ?? today ?? 1
 
   const stats = useMemo(() => {
-    const totals = Array.from({ length: nDays }, (_, i) => Math.max(0, values[i + 1]?.total ?? 0))
+    // days still to come show no dot, so future-dated entries stay out of the average, scale and "Biggest"
+    const totals = Array.from({ length: nDays }, (_, i) => (i < elapsed ? Math.max(0, values[i + 1]?.total ?? 0) : 0))
     const positive = totals.filter((v) => v > 0).sort((a, b) => a - b)
     const max = positive[positive.length - 1] ?? 0
     const sum = totals.reduce((s, v) => s + v, 0)
@@ -71,7 +72,7 @@ export default function DotCalendar({ year, month, values, today, view = "chart"
       if (max > cap * 1.3) scaleMax = cap
     }
     return { totals, max, sum, biggest, step, scaleMax, capped: scaleMax < max }
-  }, [values, nDays])
+  }, [values, nDays, elapsed])
 
   const dateOf = (d: number) => new Date(year, month, d)
   const longDate = (d: number) =>

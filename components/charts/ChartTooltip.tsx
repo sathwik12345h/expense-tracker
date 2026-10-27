@@ -1,14 +1,15 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useLayoutEffect, useRef, type ReactNode } from "react"
 
 const OFFSET = 14
 
 /**
  * The one tooltip every chart uses. Absolutely positioned inside a `relative`
- * chart container; sits to the right of (x, y) and flips to the left when it
- * would run off the right edge. Hidden from assistive tech — the focused mark
- * carries the same text in its aria-label.
+ * chart container. It is measured before paint and sits to the right of (x, y),
+ * else to the left; when neither side has room (a mid-chart point on a phone)
+ * it centres over or under the point, clamped to the chart. Hidden from
+ * assistive tech — the focused mark carries the same text in its aria-label.
  */
 export function ChartTooltip({
   x, y, containerWidth, children, avoid = 0,
@@ -20,17 +21,37 @@ export function ChartTooltip({
   /** Half-width of the mark at x, so the tooltip clears it on either side. */
   avoid?: number
 }) {
-  const flip = x > Math.max(containerWidth / 2, containerWidth - 250)
-  const gap = OFFSET + avoid
+  const ref = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    const gap = OFFSET + avoid
+    let left: number
+    let top: number
+    if (x + gap + w <= containerWidth) {
+      left = x + gap
+      top = y - h / 2
+    } else if (x - gap - w >= 0) {
+      left = x - gap - w
+      top = y - h / 2
+    } else {
+      left = Math.min(Math.max(0, x - w / 2), Math.max(0, containerWidth - w))
+      const below = (el.offsetParent as HTMLElement | null)?.clientHeight ?? Infinity
+      top = y - gap - h >= 0 || y + gap + h > below ? y - gap - h : y + gap
+    }
+    el.style.left = `${Math.round(left)}px`
+    el.style.top = `${Math.round(top)}px`
+  })
+
   return (
     <div
+      ref={ref}
       aria-hidden
       className="pointer-events-none absolute z-30 w-max transition-[left,top] duration-150 ease-out-quint"
-      style={{
-        left: x,
-        top: y,
-        transform: flip ? `translate(calc(-100% - ${gap}px), -50%)` : `translate(${gap}px, -50%)`,
-      }}
+      style={{ maxWidth: containerWidth }}
     >
       <div className="max-w-[250px] animate-[pop-in_.18s_var(--ease-out-quint)] rounded-xl bg-ink px-3 py-2 text-[12.5px] leading-snug text-on-ink shadow-lift">
         {children}

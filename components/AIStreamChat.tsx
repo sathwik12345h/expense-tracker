@@ -693,7 +693,7 @@ export default function AIStreamChat({ initialQuery }: Props) {
             <button
               type="button"
               onClick={startOver}
-              className="-mr-2 ml-auto inline-flex h-6 items-center gap-1.5 rounded-full px-2 transition hover:bg-paper-2 hover:text-ink"
+              className="relative -mr-2 ml-auto inline-flex h-6 items-center gap-1.5 rounded-full px-2 transition before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] hover:bg-paper-2 hover:text-ink"
             >
               <RotateCcw size={11} strokeWidth={2} aria-hidden />
               Start over

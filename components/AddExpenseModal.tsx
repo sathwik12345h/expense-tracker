@@ -225,6 +225,7 @@ export default function AddExpenseModal({ onClose, onSuccess, userId, prefill }:
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card")
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [error, setError] = useState("")
   const [showReceiptScanner, setShowReceiptScanner] = useState(false)
   // true while "Money in" is only on because the Income stamp was picked, so
@@ -332,7 +333,9 @@ export default function AddExpenseModal({ onClose, onSuccess, userId, prefill }:
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>, close: () => void) {
     e.preventDefault()
-    if (!canSubmit || saving) return
+    // the ref catches a second Enter/click before the re-render disables the button
+    if (!canSubmit || savingRef.current) return
+    savingRef.current = true
     setSaving(true)
     setError("")
 
@@ -356,11 +359,12 @@ export default function AddExpenseModal({ onClose, onSuccess, userId, prefill }:
       })
 
       if (!res.ok) throw new Error("Failed to add expense")
+      // stays "saving" while the sheet animates out, so it can't be sent twice
       onSuccess()
       close()
     } catch {
       setError("Something went wrong. Please try again.")
-    } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }

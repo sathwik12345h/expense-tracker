@@ -149,10 +149,12 @@ function CalendarArt() {
     ["Christmas", "60 days", "$12/day"],
     ["New Year", "67 days", "$9/day"],
   ]
+  // overflow-x scrolling clips vertically too, so the row carries room for the
+  // cards' drift (≤ ~0.065 × half a viewport) and gives it back with a negative margin
   return (
-    <div className="no-scrollbar flex w-full gap-3 overflow-x-auto pb-1">
+    <div className="no-scrollbar -my-12 flex w-full gap-3 overflow-x-auto py-12">
       {events.map(([name, when, save], i) => (
-        <Parallax key={name} speed={0.03 + i * 0.025} className="shrink-0">
+        <Parallax key={name} speed={0.02 + i * 0.015} className="shrink-0">
           <div className={`w-[170px] rounded-2xl border p-4 ${i === 0 ? "border-ink bg-ink text-on-ink" : "border-line bg-card"}`}>
             <p className={`eyebrow ${i === 0 ? "text-lime" : "text-muted"}`}>in {when}</p>
             <p className="mt-3 font-serif text-[28px] leading-none">{name}</p>

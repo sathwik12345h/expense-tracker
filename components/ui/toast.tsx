@@ -52,7 +52,7 @@ function ToastRow({ item }: { item: ToastItem }) {
         type="button"
         onClick={() => dismiss(item.id)}
         aria-label="Dismiss"
-        className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-on-ink-muted transition hover:bg-ink-soft hover:text-on-ink"
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-on-ink-muted transition hover:bg-ink-soft hover:text-on-ink"
       >
         <X size={14} />
       </button>

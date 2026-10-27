@@ -106,12 +106,15 @@ export function Sheet({ onClose, label, children, variant = "drawer", width = 48
         onClick={close}
         className={`absolute inset-0 bg-ink/45 backdrop-blur-[3px] ${closing ? "opacity-0 transition-opacity duration-200" : "animate-[fade_.3s_ease-out]"}`}
       />
+      {/* inert while animating out so a second click or Enter can't submit again;
+          the backdrop stays hit-testable so that click doesn't land on the page */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
+        inert={closing}
         style={{ "--w": `${width}px` } as CSSProperties}
         className={`flex flex-col overflow-hidden bg-card shadow-lift outline-none ${panelClass} ${className}`}
       >

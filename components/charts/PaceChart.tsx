@@ -136,15 +136,37 @@ export default function PaceChart({
   const marks: LabelBox[] = [{ x: todayX - 7, y: todayY - 7, w: 14, h: 14 }]
   if (projEnd) marks.push({ x: projEnd[0] - 5, y: projEnd[1] - 5, w: 10, h: 10 })
 
+  // The series themselves, sampled every ~8px. A label's surface halo would
+  // erase whatever line runs under it, so a spot clear of them all comes first.
+  const series: LabelBox[] = []
+  const sample = (pts: Array<[number, number]>) => {
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1]
+      const [x1, y1] = pts[i]
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 8))
+      for (let k = 0; k <= n; k++) series.push({ x: x0 + ((x1 - x0) * k) / n - 2, y: y0 + ((y1 - y0) * k) / n - 2, w: 4, h: 4 })
+    }
+  }
+  sample(prevPts)
+  sample(curPts)
+  if (projEnd) sample([[todayX, todayY], projEnd])
+
   function place(key: string, tag: string, value: string, candidates: Array<[number, number, "start" | "end"]>) {
     const w = textWidth(tag, 9.5, { mono: true, tracking: 0.12 }) + 5 + textWidth(value, 12)
-    for (const [tx, ty, anchor] of candidates) {
-      const box = { x: anchor === "end" ? tx - w : tx, y: ty - 11, w, h: 14 }
-      const inside = box.x >= padL - 2 && box.x + box.w <= width - 2 && box.y >= 0 && box.y + box.h <= plotB - 2
-      const clear = !placed.some((o) => overlaps(o, box, 4)) && !marks.some((o) => overlaps(o, box, 0))
-      if (inside && clear) {
-        placed.push({ ...box, anchor, tx, ty, tag, value, key })
-        return
+    // first pass keeps every line visible; if no candidate manages that, fall
+    // back to only avoiding other labels and the dots rather than drop the label
+    for (const avoidSeries of [true, false]) {
+      for (const [tx, ty, anchor] of candidates) {
+        const box = { x: anchor === "end" ? tx - w : tx, y: ty - 11, w, h: 14 }
+        const inside = box.x >= padL - 2 && box.x + box.w <= width - 2 && box.y >= 0 && box.y + box.h <= plotB - 2
+        const clear =
+          !placed.some((o) => overlaps(o, box, 4)) &&
+          !marks.some((o) => overlaps(o, box, 0)) &&
+          !(avoidSeries && series.some((o) => overlaps(o, box, 2)))
+        if (inside && clear) {
+          placed.push({ ...box, anchor, tx, ty, tag, value, key })
+          return
+        }
       }
     }
   }

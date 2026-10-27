@@ -7,7 +7,7 @@ import type { Category } from "@/types"
 interface CategoryMeta {
   color: string
   icon: LucideIcon
-  /** Text colour that reads best on a solid tile of `color` (APCA). */
+  /** Text colour on a solid tile of `color`: whichever passes WCAG 2 AA (≥ 4.5:1). */
   labelOn: "#16150f" | "#ffffff"
 }
 
@@ -15,12 +15,12 @@ interface CategoryMeta {
 // Text never wears these colours — they mark tiles, bars and swatches only.
 export const CATEGORY_META: Record<Category, CategoryMeta> = {
   Food: { color: "#eda100", icon: UtensilsCrossed, labelOn: "#16150f" },
-  Travel: { color: "#3fa7d6", icon: Plane, labelOn: "#ffffff" },
-  Shopping: { color: "#e87ba4", icon: ShoppingBag, labelOn: "#ffffff" },
+  Travel: { color: "#3fa7d6", icon: Plane, labelOn: "#16150f" },
+  Shopping: { color: "#e87ba4", icon: ShoppingBag, labelOn: "#16150f" },
   Bills: { color: "#2f5597", icon: ReceiptText, labelOn: "#ffffff" },
   Entertainment: { color: "#a8385e", icon: Clapperboard, labelOn: "#ffffff" },
-  Health: { color: "#7a8c00", icon: HeartPulse, labelOn: "#ffffff" },
-  Other: { color: "#8f8a7e", icon: Shapes, labelOn: "#ffffff" },
+  Health: { color: "#7a8c00", icon: HeartPulse, labelOn: "#16150f" },
+  Other: { color: "#8f8a7e", icon: Shapes, labelOn: "#16150f" },
   Income: { color: "#1f7a4d", icon: ArrowDownLeft, labelOn: "#ffffff" },
 }
 

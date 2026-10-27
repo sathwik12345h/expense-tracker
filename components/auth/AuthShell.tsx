@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, type CSSProperties, type InputHTMLAttributes, type PointerEvent, type ReactNode } from "react"
+import { useId, useRef, useState, type CSSProperties, type InputHTMLAttributes, type PointerEvent, type ReactNode } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/ui/Logo"
 import { BalanceChip, HeroReceipt, StickyNote } from "@/components/landing/Hero"
@@ -73,19 +73,26 @@ export default function AuthShell({
 }
 
 export function Field({
-  label, hint, type = "text", ...props
+  label, hint, type = "text", id, ...props
 }: { label: string; hint?: ReactNode } & InputHTMLAttributes<HTMLInputElement>) {
   const [show, setShow] = useState(false)
+  const autoId = useId()
+  const inputId = id ?? autoId
   const isPassword = type === "password"
+  // a real <label for> on the caption only: wrapping the show/hide button in the
+  // label would fold "Show password" into the field's accessible name
   return (
-    <label className="group block">
+    <div className="group">
       <span className="flex items-baseline justify-between">
-        <span className="eyebrow text-muted transition-colors group-focus-within:text-ink">{label}</span>
+        <label htmlFor={inputId} className="eyebrow text-muted transition-colors group-focus-within:text-ink">
+          {label}
+        </label>
         {hint}
       </span>
       <span className="relative mt-2 block">
         <input
           {...props}
+          id={inputId}
           type={isPassword && show ? "text" : type}
           className="peer w-full border-0 border-b-[1.5px] border-line-2 bg-transparent px-0 pb-3 pt-1 text-[18px] text-ink outline-none transition-colors placeholder:text-faint focus:border-ink focus-visible:outline-none"
         />
@@ -101,7 +108,7 @@ export function Field({
           </button>
         )}
       </span>
-    </label>
+    </div>
   )
 }
 

@@ -149,14 +149,18 @@ function Lede({ spent, lastToDate }: { spent: number; lastToDate: number }) {
 /** A ruler of the month's days: elapsed in ink, today marked in lime, Sundays taller. */
 function MonthStrip({ year, month, today, days, monthShort }: { year: number; month: number; today: number; days: number; monthShort: string }) {
   const firstDow = new Date(year, month, 1).getDay()
-  const left = days - today
+  // today still counts, as on the budget cards
+  const left = days - today + 1
   return (
-    <figure className="w-full lg:w-[320px]" aria-label={`Day ${today} of ${days}, ${left} ${left === 1 ? "day" : "days"} to go`}>
+    <figure
+      className="w-full lg:w-[320px]"
+      aria-label={`Day ${today} of ${days}, ${left === 1 ? "last day of the month" : `${left} days to go`}`}
+    >
       <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
         <span>
           Day <span className="text-ink">{today}</span> / {days}
         </span>
-        <span>{left === 0 ? "Last day" : `${left} to go`}</span>
+        <span>{left === 1 ? "Last day" : `${left} to go`}</span>
       </div>
       <div aria-hidden className="mt-3 flex h-9 items-end justify-between">
         {Array.from({ length: days }, (_, i) => {
@@ -202,8 +206,10 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
     toast("Entry added")
   }
 
+  // throws on a failed delete so callers can keep the row and say so
   async function handleDeleteExpense(id: string) {
-    await fetch(`/api/expenses/${id}`, { method: "DELETE" })
+    const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" })
+    if (!res.ok) throw new Error(`Delete failed (${res.status})`)
     router.refresh()
   }
 
@@ -236,8 +242,12 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
     transactions: Array<{ name: string; amount: number; category: string; type: string; note?: string }>,
     date: string
   ) {
+    // ISO days land at local noon; anything else the model returns ("10/24/2026")
+    // goes through the general parser before falling back to today
+    const parsed = date && date !== "today" ? localNoon(date) ?? new Date(date) : null
+    const when = parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date()
     try {
-      await Promise.all(
+      const responses = await Promise.all(
         transactions.map((tx) =>
           fetch("/api/expenses", {
             method: "POST",
@@ -247,7 +257,7 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
               amount: tx.amount,
               type: tx.type,
               category: tx.category,
-              date: (date === "today" ? new Date() : localNoon(date) ?? new Date()).toISOString(),
+              date: when.toISOString(),
               status: "cleared",
               note: tx.note || null,
               userId,
@@ -255,10 +265,20 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
           })
         )
       )
-      toast(`Added ${transactions.length} ${transactions.length === 1 ? "entry" : "entries"} from the receipt`, "success")
+      const failed = responses.filter((r) => !r.ok).length
+      const added = transactions.length - failed
+      if (failed === 0) {
+        toast(`Added ${added} ${added === 1 ? "entry" : "entries"} from the receipt`, "success")
+      } else {
+        toast(
+          added > 0 ? `Added ${added} of ${transactions.length} entries. The rest didn't save.` : "Couldn't save those entries",
+          "error"
+        )
+      }
       router.refresh()
     } catch {
       toast("Couldn't save some of those entries", "error")
+      router.refresh()
     }
   }
 
@@ -366,7 +386,7 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
 
         {/* 2 · balance + calendar */}
         <div className="rise grid gap-5 [animation-delay:80ms] lg:grid-cols-12">
-          <div className="lg:col-span-7">
+          <div className="min-w-0 lg:col-span-7">
             <BalanceCard
               balance={stats.balance}
               monthIncome={month?.monthIncome ?? null}
@@ -380,7 +400,7 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
           {/* below lg the card is wide: title + a short reading guide sit beside the calendar */}
           <section
             aria-labelledby="calendar-title"
-            className="flex flex-col rounded-[24px] border border-line bg-card p-5 sm:grid sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:gap-x-8 sm:p-6 lg:col-span-5 lg:flex"
+            className="flex min-w-0 flex-col rounded-[24px] border border-line bg-card p-5 sm:grid sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:gap-x-8 sm:p-6 lg:col-span-5 lg:flex"
           >
             <div className="flex items-start justify-between gap-3 sm:flex-col sm:justify-start lg:flex-row lg:justify-between">
               <div>
@@ -438,10 +458,10 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
 
         {/* 4 · budgets + analytics */}
         <div className="rise grid gap-5 pt-5 [animation-delay:220ms] lg:grid-cols-12">
-          <div className="lg:col-span-5">
+          <div className="min-w-0 lg:col-span-5">
             <BudgetOverview budgets={budgetSummary} />
           </div>
-          <div className="lg:col-span-7">
+          <div className="min-w-0 lg:col-span-7">
             <AnalyticsPanel expenses={expenses} budgetTotal={budgetTotal} />
           </div>
         </div>
@@ -451,6 +471,7 @@ export default function DashboardClient({ expenses, stats, userName, userId, bud
           <TransactionLedger
             expenses={expenses}
             onDelete={async (id: string) => {
+              // a rejection keeps the row and shows the ledger's own error
               await handleDeleteExpense(id)
               toast("Entry deleted")
             }}

@@ -66,11 +66,15 @@ export function useVoiceInput() {
   const [transcript, setTranscript] = useState("")
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState("")
+  // attempts that ended before the mic opened; lets callers tell a repeat of
+  // the same error apart from "still waiting for the mic"
+  const [failedStarts, setFailedStarts] = useState(0)
   const recognitionRef = useRef<any>(null)
 
   const startListening = useCallback((onResult: (result: VoiceResult) => void) => {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       setError("Voice input not supported in this browser. Use Chrome or Edge.")
+      setFailedStarts((n) => n + 1)
       return
     }
 
@@ -82,7 +86,16 @@ export function useVoiceInput() {
     recognition.interimResults = false
     recognition.lang = "en-US"
 
+    let opened = false
+    let failed = false
+    const markFailed = () => {
+      if (opened || failed) return
+      failed = true
+      setFailedStarts((n) => n + 1)
+    }
+
     recognition.onstart = () => {
+      opened = true
       setIsListening(true)
       setError("")
       setTranscript("")
@@ -124,13 +137,20 @@ export function useVoiceInput() {
       } else {
         setError("Voice recognition failed. Please try again.")
       }
+      markFailed()
     }
 
     recognition.onend = () => {
       setIsListening(false)
+      markFailed()
     }
 
-    recognition.start()
+    try {
+      recognition.start()
+    } catch {
+      setError("Voice recognition failed. Please try again.")
+      markFailed()
+    }
   }, [])
 
   const stopListening = useCallback(() => {
@@ -140,6 +160,6 @@ export function useVoiceInput() {
     setIsListening(false)
   }, [])
 
-  return { isListening, transcript, processing, error, startListening, stopListening }
+  return { isListening, transcript, processing, error, failedStarts, startListening, stopListening }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
