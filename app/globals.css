@@ -1,49 +1,225 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────
-   Spendwise — "ledger & highlighter"
-   Paper, ink, and one lime marker. Category hues validated for
-   colour-blind separation (all-pairs CVD ΔE ≥ 8) on the card surface.
+   Spendwise — "Slab & Coin"
+   Four colours carry the whole product: evergreen (the brand, and
+   money coming in), coral (actions, and money going out), sun (the
+   highlighter) and sky (the cool counterweight). By day they sit on
+   pale sage; by night on deep pine. Nothing is flat: cards are slabs
+   with a visible edge, buttons are keycaps that travel, coins are 3D.
+
+   Every colour is a CSS variable switched by [data-theme] on <html>,
+   so the whole app — charts and WebGL scenes included — follows the
+   coin flip in the header.
    ───────────────────────────────────────────────────────────── */
 
-@theme inline {
-  --color-paper: #f3f0e8;
-  --color-paper-2: #eae5d9;
-  --color-paper-3: #e1dbcc;
-  --color-card: #fbfaf6;
-  --color-ink: #16150f;
-  --color-ink-2: #3b3a33;
-  --color-ink-soft: #25241d;
-  --color-muted: #625e55; /* ≥ 4.5:1 on paper, paper-2, paper-3 and card */
-  --color-faint: #a39e90;
-  --color-line: #ddd6c7;
-  --color-line-2: #cfc7b5;
-  --color-on-ink: #f3f0e8;
-  --color-on-ink-muted: #b4ae9f;
+:root,
+[data-theme="light"] {
+  --c-canvas: #eef4e9;
+  --c-canvas-2: #e3edde;
+  --c-surface: #fbfdf6;
+  --c-surface-2: #ffffff;
+  --c-well: #e3ecdc;
+  --c-well-2: #d5e1cd;
+  --c-line: #d2ddca;
+  --c-line-2: #b4c6ae;
+  --c-slab-edge: #c2d1ba;
 
-  --color-lime: #d4f36b;
-  --color-lime-2: #c4e852;
+  --c-fg: #0b2b22;
+  --c-fg-2: #2b4a3f;
+  --c-muted: #53685e; /* ≥ 4.5:1 on canvas, surface and well */
+  --c-faint: #92a398;
 
-  --color-income: #1f7a4d;
-  --color-danger: #c4352a;
-  --color-warn: #996100;
-  --color-warn-fill: #f0b429;
+  --c-solid: #0e3b2e;
+  --c-solid-2: #175242;
+  --c-on-solid: #f3f7ea;
+  --c-on-solid-muted: #a9c4b5;
+  --c-solid-accent: #ffd23f;
 
-  --color-cat-food: #eda100;
-  --color-cat-travel: #3fa7d6;
-  --color-cat-shopping: #e87ba4;
-  --color-cat-bills: #2f5597;
-  --color-cat-entertainment: #a8385e;
-  --color-cat-health: #7a8c00;
-  --color-cat-other: #8f8a7e;
-  --color-cat-income: #1f7a4d;
+  --c-brand: #0f6b52;
+  --c-coral: #ff5a36;
+  --c-coral-2: #f2441d;
+  --c-coral-deep: #b02c0c;
+  --c-coral-ink: #c1340f;
+  --c-on-coral: #2a0c03;
+  --c-sun: #ffd23f;
+  --c-sun-2: #ffc21a;
+  --c-sun-deep: #c08d00;
+  --c-on-sun: #2a2000;
+  --c-sky: #8fd0ff;
+  --c-sky-2: #6fc0fb;
+  --c-sky-deep: #3d8fcc;
+  --c-on-sky: #06263d;
+
+  --c-income: #0f7a55;
+  --c-danger: #c92a2a;
+  --c-warn: #8a5a00;
+  --c-warn-fill: #f0b429;
+
+  --c-cat-food: #f2892b;
+  --c-cat-travel: #2a9df4;
+  --c-cat-shopping: #f0609e;
+  --c-cat-bills: #0e9aa7;
+  --c-cat-entertainment: #e8b100;
+  --c-cat-health: #6fbf3b;
+  --c-cat-other: #8c9a92;
+  --c-cat-income: #0f7a55;
+  --c-on-cat: #0a231c;
+  --c-on-cat-income: #ffffff;
+
+  --c-focus: #0b2b22;
+  --c-scrim: rgb(11 43 34 / 0.42);
+  --sh-card: 0 1px 0 rgb(255 255 255 / 0.8) inset, 0 18px 36px -22px rgb(11 43 34 / 0.35);
+  --sh-lift: 0 0 0 1px rgb(11 43 34 / 0.06), 0 30px 60px -24px rgb(11 43 34 / 0.45);
+  --sh-slab: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 1px 2px rgb(11 43 34 / 0.05), 0 14px 34px -18px rgb(11 43 34 / 0.26);
+  --c-spot: rgb(143 208 255 / 0.24);
+  --c-key-shadow: rgb(11 43 34 / 0.34);
+  --c-ink-a: #e2401b;
+  --c-ink-b: #ff7a45;
+  --c-ink-glint: #ffc3a0;
+  --blob-a: rgb(143 208 255 / 0.5);
+  --blob-b: rgb(255 210 63 / 0.26);
+  --blob-c: rgb(255 90 54 / 0.16);
+  --grain: 0.05;
+  --card-a: #10634c;
+  --card-b: #0a3a2d;
+}
+
+[data-theme="dark"] {
+  --c-canvas: #06221b;
+  --c-canvas-2: #082a21;
+  --c-surface: #0c3128;
+  --c-surface-2: #124135;
+  --c-well: #15493c;
+  --c-well-2: #1d5a4b;
+  --c-line: #194a3d;
+  --c-line-2: #2c6a58;
+  --c-slab-edge: #03150f;
+
+  --c-fg: #f2f5e6;
+  --c-fg-2: #c8d8ca;
+  --c-muted: #9dbbab; /* ≥ 4.5:1 on canvas, surface and well */
+  --c-faint: #5f8272;
+
+  --c-solid: #f2f5e6;
+  --c-solid-2: #dfe6d2;
+  --c-on-solid: #08261e;
+  --c-on-solid-muted: #4f6a5e;
+  --c-solid-accent: #c23a14;
+
+  --c-brand: #3ddc97;
+  --c-coral: #ff6b4a;
+  --c-coral-2: #ff5a36;
+  --c-coral-deep: #a12a0c;
+  --c-coral-ink: #ff8a6e;
+  --c-on-coral: #2a0c03;
+  --c-sun: #ffd84d;
+  --c-sun-2: #ffc928;
+  --c-sun-deep: #b38600;
+  --c-on-sun: #2a2000;
+  --c-sky: #8fd3ff;
+  --c-sky-2: #74c4f7;
+  --c-sky-deep: #3b86bd;
+  --c-on-sky: #06263d;
+
+  --c-income: #3ddc97;
+  --c-danger: #ff7b72;
+  --c-warn: #ffc15e;
+  --c-warn-fill: #ffc15e;
+
+  --c-cat-food: #ff9a45;
+  --c-cat-travel: #4db2ff;
+  --c-cat-shopping: #ff7fb3;
+  --c-cat-bills: #2cc5cf;
+  --c-cat-entertainment: #ffd84d;
+  --c-cat-health: #9be05a;
+  --c-cat-other: #a3b3aa;
+  --c-cat-income: #3ddc97;
+  --c-on-cat: #0a231c;
+  --c-on-cat-income: #0a231c;
+
+  --c-focus: #ffd84d;
+  --c-scrim: rgb(2 14 11 / 0.66);
+  --sh-card: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 24px 44px -26px rgb(0 0 0 / 0.7);
+  --sh-lift: 0 0 0 1px rgb(255 255 255 / 0.07), 0 34px 70px -22px rgb(0 0 0 / 0.8);
+  --sh-slab: 0 1px 0 rgb(255 255 255 / 0.07) inset, 0 1px 2px rgb(0 0 0 / 0.35), 0 20px 44px -22px rgb(0 0 0 / 0.75);
+  --c-spot: rgb(143 211 255 / 0.11);
+  --c-key-shadow: rgb(0 0 0 / 0.6);
+  --c-ink-a: #ff6b4a;
+  --c-ink-b: #ff9a6b;
+  --c-ink-glint: #ffe3d2;
+  --blob-a: rgb(143 211 255 / 0.1);
+  --blob-b: rgb(255 216 77 / 0.06);
+  --blob-c: rgb(255 107 74 / 0.08);
+  --grain: 0.08;
+  --card-a: #17805f;
+  --card-b: #0d4c3a;
+}
+
+/* "static": emit every variable below even if no utility class uses it yet,
+   because inline styles, SVG fills and the WebGL scenes read them directly. */
+@theme inline static {
+  /* surfaces */
+  --color-canvas: var(--c-canvas);
+  --color-canvas-2: var(--c-canvas-2);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-well: var(--c-well);
+  --color-well-2: var(--c-well-2);
+  --color-line: var(--c-line);
+  --color-line-2: var(--c-line-2);
+  --color-slab-edge: var(--c-slab-edge);
+
+  /* text */
+  --color-fg: var(--c-fg);
+  --color-fg-2: var(--c-fg-2);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+
+  /* the inverse block: evergreen by day, cream by night */
+  --color-solid: var(--c-solid);
+  --color-solid-2: var(--c-solid-2);
+  --color-on-solid: var(--c-on-solid);
+  --color-on-solid-muted: var(--c-on-solid-muted);
+  --color-solid-accent: var(--c-solid-accent);
+
+  /* the four */
+  --color-brand: var(--c-brand);
+  --color-coral: var(--c-coral);
+  --color-coral-2: var(--c-coral-2);
+  --color-coral-deep: var(--c-coral-deep);
+  --color-coral-ink: var(--c-coral-ink);
+  --color-on-coral: var(--c-on-coral);
+  --color-sun: var(--c-sun);
+  --color-sun-2: var(--c-sun-2);
+  --color-sun-deep: var(--c-sun-deep);
+  --color-on-sun: var(--c-on-sun);
+  --color-sky: var(--c-sky);
+  --color-sky-2: var(--c-sky-2);
+  --color-sky-deep: var(--c-sky-deep);
+  --color-on-sky: var(--c-on-sky);
+
+  --color-income: var(--c-income);
+  --color-danger: var(--c-danger);
+  --color-warn: var(--c-warn);
+  --color-warn-fill: var(--c-warn-fill);
+
+  --color-cat-food: var(--c-cat-food);
+  --color-cat-travel: var(--c-cat-travel);
+  --color-cat-shopping: var(--c-cat-shopping);
+  --color-cat-bills: var(--c-cat-bills);
+  --color-cat-entertainment: var(--c-cat-entertainment);
+  --color-cat-health: var(--c-cat-health);
+  --color-cat-other: var(--c-cat-other);
+  --color-cat-income: var(--c-cat-income);
+  --color-on-cat: var(--c-on-cat);
 
   --font-sans: var(--ff-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--ff-serif), "Times New Roman", serif;
+  --font-display: var(--ff-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--ff-mono), ui-monospace, "SFMono-Regular", monospace;
 
-  --shadow-paper: 0 1px 0 rgb(22 21 15 / 0.04), 0 18px 40px -18px rgb(22 21 15 / 0.28);
-  --shadow-lift: 0 1px 0 rgb(22 21 15 / 0.05), 0 30px 60px -24px rgb(22 21 15 / 0.35);
+  --shadow-card: var(--sh-card);
+  --shadow-lift: var(--sh-lift);
 
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -53,6 +229,13 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    color-scheme: light;
+    scrollbar-color: var(--color-line-2) transparent;
+    background-color: var(--color-canvas);
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
   }
 
   /* In the app, focus scrolling keeps controls clear of the sticky header and
@@ -63,28 +246,49 @@
   }
 
   body {
-    background-color: var(--color-paper);
-    /* faint paper grain */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E");
-    color: var(--color-ink);
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Ambient colour: sky up top-left, sun top-right, coral low down, plus a
+     little grain so big flat areas never band. Fixed, behind everything. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(900px 560px at -8% -6%, var(--blob-a), transparent 62%),
+      radial-gradient(820px 520px at 104% -10%, var(--blob-b), transparent 60%),
+      radial-gradient(1000px 640px at 70% 118%, var(--blob-c), transparent 60%);
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: var(--grain);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
   ::selection {
-    background: var(--color-lime);
-    color: var(--color-ink);
+    background: var(--color-sun);
+    color: var(--color-on-sun);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-ink);
+    outline: 2px solid var(--c-focus);
     outline-offset: 2px;
   }
 
-  .on-ink :focus-visible {
-    outline-color: var(--color-lime);
+  .on-solid :focus-visible {
+    outline-color: var(--color-solid-accent);
   }
 
   input[type="number"]::-webkit-outer-spin-button,
@@ -102,7 +306,47 @@
   }
 }
 
+/* ── Theme flip: the new theme spreads out from the coin ──── */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  animation: theme-reveal 0.85s cubic-bezier(0.6, 0, 0.2, 1);
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--flip-x, 50%) var(--flip-y, 0%));
+  }
+  to {
+    clip-path: circle(150vmax at var(--flip-x, 50%) var(--flip-y, 0%));
+  }
+}
+
 /* ── Type helpers ─────────────────────────────────────────── */
+
+@layer components {
+  /* Display type: the same clean sans as the body, heavier and set tight.
+     Emphasis inside a heading is two-tone (the second voice goes quiet),
+     never italic and never a coloured block. */
+  .font-display {
+    font-weight: 600;
+    letter-spacing: -0.04em;
+  }
+
+  .font-display :where(.italic) {
+    color: var(--color-faint);
+  }
+}
+
+.font-display .italic,
+.font-display.italic {
+  font-style: normal;
+}
 
 .eyebrow {
   font-family: var(--font-mono);
@@ -115,150 +359,209 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Lime marker stroke that "draws" across a word. */
+/* The one phrase a heading wants you to keep: inked in a warm gradient with
+   a band of light that travels slowly through the letters. */
 .highlight {
   background-image: linear-gradient(
     100deg,
-    transparent 0.2em,
-    var(--color-lime) 0.3em,
-    var(--color-lime) calc(100% - 0.25em),
-    transparent calc(100% - 0.12em)
+    var(--c-ink-a) 0%,
+    var(--c-ink-b) 28%,
+    var(--c-ink-glint) 46%,
+    var(--c-ink-b) 64%,
+    var(--c-ink-a) 100%
   );
-  background-repeat: no-repeat;
-  background-position: 0 78%;
-  background-size: 0% 62%;
-  padding: 0 0.12em;
-  margin: 0 -0.12em;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  animation: draw-highlight 1s var(--ease-out-quint) 0.5s forwards;
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--c-ink-a);
+  animation: ink-sheen 7s ease-in-out infinite;
+  /* keep descenders inside the clipped paint box */
+  padding-bottom: 0.08em;
 }
 
-@keyframes draw-highlight {
-  to {
-    background-size: 100% 62%;
+@keyframes ink-sheen {
+  0%,
+  100% {
+    background-position: 100% 0;
+  }
+  50% {
+    background-position: 0% 0;
   }
 }
 
-/* ── Paper & receipts ─────────────────────────────────────── */
-
-/* Torn / zig-zag bottom edge, like a till receipt. */
-.torn-bottom {
-  --z: 7px;
-  -webkit-mask:
-    linear-gradient(#000 0 0) top / 100% calc(100% - var(--z) + 1px) no-repeat,
-    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / calc(2 * var(--z)) var(--z) repeat-x;
-  mask:
-    linear-gradient(#000 0 0) top / 100% calc(100% - var(--z) + 1px) no-repeat,
-    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / calc(2 * var(--z)) var(--z) repeat-x;
-  padding-bottom: calc(var(--z) + 8px);
+/* Privacy: blur every amount until you ask to see them again. */
+html[data-private="true"] .tnum {
+  filter: blur(0.45em);
+  user-select: none;
 }
 
-.torn-top {
-  --z: 7px;
-  -webkit-mask:
-    linear-gradient(#000 0 0) bottom / 100% calc(100% - var(--z) + 1px) no-repeat,
-    conic-gradient(from -45deg at 50% 100%, #000 90deg, #0000 0) top / calc(2 * var(--z)) var(--z) repeat-x;
-  mask:
-    linear-gradient(#000 0 0) bottom / 100% calc(100% - var(--z) + 1px) no-repeat,
-    conic-gradient(from -45deg at 50% 100%, #000 90deg, #0000 0) top / calc(2 * var(--z)) var(--z) repeat-x;
-}
+/* ── Slabs: lit surfaces ──────────────────────────────────── */
 
-.drop-paper {
-  filter: drop-shadow(0 1px 0 rgb(22 21 15 / 0.05)) drop-shadow(0 14px 22px rgb(22 21 15 / 0.14));
-}
+@layer components {
+  /* A card that sits a little above the page: hairline edge, a highlight
+     along its top, and a soft shadow that falls away below. A pool of light
+     follows the pointer across it (see <Spotlight/>, which sets --sx/--sy). */
+  .slab {
+    position: relative;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    box-shadow: var(--sh-slab);
+  }
 
-.perforation {
-  border-top: 1.5px dashed var(--color-line-2);
-}
+  .slab::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(340px circle at var(--sx, 50%) var(--sy, 0%), var(--c-spot), transparent 62%);
+  }
 
-.leader {
-  flex: 1 1 auto;
-  min-width: 12px;
-  border-bottom: 1.5px dotted var(--color-line-2);
-  transform: translateY(-4px);
-}
-
-/* ── Ticker tape ─────────────────────────────────────────── */
-
-.marquee {
-  display: flex;
-  width: max-content;
-  animation: marquee var(--marquee-duration, 48s) linear infinite;
-}
-
-.marquee-reverse {
-  animation-direction: reverse;
-}
-
-@keyframes marquee {
-  to {
-    transform: translate3d(-50%, 0, 0);
+  .slab:hover::before {
+    opacity: 1;
   }
 }
 
-/* ── Ruler slider (budget limits) ────────────────────────── */
+.glass {
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid color-mix(in srgb, var(--color-line-2) 70%, transparent);
+  box-shadow: var(--sh-slab);
+}
 
-.ruler {
+/* ── Buttons: lit from above, with real travel ────────────── */
+/* The class keeps its old name; --edge is the colour of the glow beneath. */
+
+.key3d {
+  --edge: var(--color-coral-deep);
+  position: relative;
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.2) 0%, rgb(255 255 255 / 0) 50%, rgb(0 0 0 / 0.07) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    inset 0 -1.5px 0 rgb(0 0 0 / 0.14),
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 10px 22px -10px color-mix(in srgb, var(--edge) 70%, transparent);
+  transition:
+    transform 0.18s var(--ease-out-quint),
+    box-shadow 0.22s var(--ease-out-quint),
+    filter 0.22s ease,
+    background-color 0.2s;
+}
+.key3d:hover {
+  transform: translate3d(0, -1.5px, 0);
+  filter: brightness(1.04);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.42),
+    inset 0 -1.5px 0 rgb(0 0 0 / 0.14),
+    0 2px 4px rgb(0 0 0 / 0.16),
+    0 18px 32px -12px color-mix(in srgb, var(--edge) 85%, transparent);
+}
+.key3d:active,
+.key3d[data-pressed="true"] {
+  transform: translate3d(0, 1px, 0) scale(0.985);
+  filter: brightness(0.97);
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 0.26),
+    0 1px 1px rgb(0 0 0 / 0.14),
+    0 4px 10px -8px color-mix(in srgb, var(--edge) 60%, transparent);
+}
+.key3d-sun {
+  --edge: var(--color-sun-deep);
+}
+.key3d-sky {
+  --edge: var(--color-sky-deep);
+}
+.key3d-solid {
+  --edge: color-mix(in srgb, var(--color-solid) 55%, #000);
+}
+.key3d-surface {
+  --edge: var(--c-key-shadow);
+}
+
+/* ── Slider: a sunken track with a keycap thumb ───────────── */
+/* Set --fill (0–100%) for the filled part and --accent for its colour. */
+
+.slider {
   --fill: 0%;
-  --accent: var(--color-ink);
+  --accent: var(--color-coral);
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  height: 34px;
+  height: 28px;
   background: transparent;
   touch-action: pan-y;
+  cursor: pointer;
 }
 
-.ruler::-webkit-slider-runnable-track {
-  height: 34px;
+.slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 999px;
   background:
-    linear-gradient(var(--accent), var(--accent)) 0 14px / var(--fill) 6px no-repeat,
-    linear-gradient(var(--color-paper-2), var(--color-paper-2)) 0 14px / 100% 6px no-repeat,
-    repeating-linear-gradient(90deg, var(--color-line-2) 0 1px, transparent 1px 10%) 0 100% / 100% 12px no-repeat,
-    repeating-linear-gradient(90deg, var(--color-line) 0 1px, transparent 1px 2.5%) 0 100% / 100% 6px no-repeat;
+    linear-gradient(var(--accent), var(--accent)) 0 0 / var(--fill) 100% no-repeat,
+    var(--color-well-2);
+  box-shadow: inset 0 2px 0 rgb(0 0 0 / 0.1);
 }
 
-.ruler::-moz-range-track {
-  height: 34px;
-  background:
-    linear-gradient(var(--color-paper-2), var(--color-paper-2)) 0 14px / 100% 6px no-repeat,
-    repeating-linear-gradient(90deg, var(--color-line-2) 0 1px, transparent 1px 10%) 0 100% / 100% 12px no-repeat,
-    repeating-linear-gradient(90deg, var(--color-line) 0 1px, transparent 1px 2.5%) 0 100% / 100% 6px no-repeat;
+.slider::-moz-range-track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-well-2);
+  box-shadow: inset 0 2px 0 rgb(0 0 0 / 0.1);
 }
 
-.ruler::-moz-range-progress {
-  height: 6px;
+.slider::-moz-range-progress {
+  height: 12px;
+  border-radius: 999px;
   background: var(--accent);
 }
 
-.ruler::-webkit-slider-thumb {
+.slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px;
-  height: 34px;
-  border: 0;
-  background:
-    radial-gradient(circle at 50% 17px, var(--color-lime) 0 4.5px, var(--color-ink) 5px 8px, transparent 8.5px),
-    linear-gradient(var(--color-ink), var(--color-ink)) 50% 0 / 2px 100% no-repeat;
-  transition: transform 160ms var(--ease-spring);
+  width: 26px;
+  height: 26px;
+  margin-top: -9px;
+  border-radius: 50%;
+  border: 2px solid var(--color-fg);
+  background: var(--color-surface-2);
+  box-shadow: 0 4px 0 var(--color-fg);
+  transition:
+    transform 0.12s var(--ease-out-quint),
+    box-shadow 0.12s var(--ease-out-quint);
 }
 
-.ruler::-moz-range-thumb {
-  width: 18px;
-  height: 34px;
-  border: 0;
-  border-radius: 0;
-  background:
-    radial-gradient(circle at 50% 17px, var(--color-lime) 0 4.5px, var(--color-ink) 5px 8px, transparent 8.5px),
-    linear-gradient(var(--color-ink), var(--color-ink)) 50% 0 / 2px 100% no-repeat;
+.slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--color-fg);
+  background: var(--color-surface-2);
+  box-shadow: 0 4px 0 var(--color-fg);
 }
 
-.ruler:active::-webkit-slider-thumb {
-  transform: scale(1.12);
+.slider:active::-webkit-slider-thumb {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--color-fg);
 }
 
-.ruler:focus-visible {
-  outline-offset: 4px;
+.slider:focus-visible {
+  outline-offset: 6px;
+}
+
+/* A 3D stage whose picture melts into the page at every edge, so nothing in
+   it is ever sliced off by the rectangle it is drawn in. */
+.edge-fade {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
+    linear-gradient(to bottom, transparent 3%, rgb(0 0 0 / 0.4) 16%, #000 30%, #000 93%, transparent);
+  mask-image:
+    linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
+    linear-gradient(to bottom, transparent 3%, rgb(0 0 0 / 0.4) 16%, #000 30%, #000 93%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
 }
 
 /* ── Motion ──────────────────────────────────────────────── */
@@ -280,40 +583,90 @@
   }
 }
 
-@keyframes sheet-in-right {
+/* A letter being struck into the closing headline. */
+@keyframes emboss {
   from {
-    transform: translate3d(100%, 0, 0);
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(1.5);
   }
 }
 
-@keyframes sheet-in-up {
+/* A feature demo turning to face you as it takes the stage. */
+@keyframes stage-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: perspective(1000px) translate3d(26px, 0, 0) rotateY(-14deg) scale(0.96);
+  }
+}
+
+/* Headline words coming up out of a soft blur, one after another. */
+@keyframes word-rise {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translate3d(0, 0.5em, 0);
+  }
+}
+
+/* Dialogs: tip up from a slight lean (desktop), slide up (phones), slide in (side panels). */
+@keyframes modal-tip {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) translate3d(0, 46px, 0) rotateX(14deg) scale(0.94);
+  }
+}
+
+@keyframes modal-up {
   from {
     transform: translate3d(0, 100%, 0);
   }
 }
 
-@keyframes pop-in {
+@keyframes modal-side {
   from {
     opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(0.97);
+    transform: perspective(1400px) translate3d(60px, 0, 0) rotateY(-10deg);
   }
 }
 
-@keyframes stamp {
-  0% {
-    transform: scale(1.18) rotate(-6deg);
+/* Quick-action chips fanning out of the coin button. */
+@keyframes fan-out {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--fx, 0), var(--fy, 20px), 0) scale(0.6);
   }
-  55% {
-    transform: scale(0.94) rotate(-1deg);
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 1;
   }
   100% {
-    transform: scale(1) rotate(-2deg);
+    transform: scale(1);
   }
 }
 
-@keyframes roll-in {
+@keyframes draw {
   from {
-    transform: translate3d(0, 0, 0);
+    stroke-dashoffset: var(--len, 1);
+  }
+}
+
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
   }
 }
 
@@ -371,8 +724,36 @@
   }
 }
 
+/* A coin turning on its own axis (CSS 3D). */
+@keyframes coin-turn {
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -12px;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
 .skeleton {
-  background: linear-gradient(90deg, var(--color-paper-2) 25%, var(--color-paper-3) 50%, var(--color-paper-2) 75%);
+  background: linear-gradient(90deg, var(--color-well) 25%, var(--color-well-2) 50%, var(--color-well) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
   border-radius: 6px;
@@ -394,7 +775,7 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  .marquee {
+  ::view-transition-new(root) {
     animation: none;
   }
 }

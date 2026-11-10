@@ -1,74 +1,62 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
+import { logger } from "@/lib/logger"
+import { parseBudget } from "@/lib/validate"
 
+/** This month's budgets (or ?month=&year=) for the signed-in user, with what's been spent against each. */
 export async function GET(request: Request) {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+
   try {
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
     const month = Number(searchParams.get("month")) || new Date().getMonth() + 1
     const year = Number(searchParams.get("year")) || new Date().getFullYear()
 
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const budgets = await prisma.budget.findMany({
-      where: { userId, month, year },
-    })
-
-    // Calculate actual spent for each budget category
-    const startDate = new Date(year, month - 1, 1)
-    const endDate = new Date(year, month, 0)
-
-    const expenses = await prisma.expense.findMany({
-      where: {
-        userId,
-        type: "expense",
-        date: { gte: startDate, lte: endDate },
-      },
-    })
-
-    const budgetsWithSpent = budgets.map((budget) => {
-      const spent = expenses
-        .filter((e) => e.category === budget.category)
-        .reduce((sum, e) => sum + e.amount, 0)
-      return { ...budget, spent }
-    })
-
-    return NextResponse.json({ data: budgetsWithSpent, success: true })
+    const [budgets, spent] = await Promise.all([
+      prisma.budget.findMany({ where: { userId, month, year } }),
+      prisma.expense.groupBy({
+        by: ["category"],
+        where: { userId, type: "expense", date: { gte: new Date(year, month - 1, 1), lt: new Date(year, month, 1) } },
+        _sum: { amount: true },
+      }),
+    ])
+    const byCategory = new Map(spent.map((s) => [s.category, s._sum.amount ?? 0]))
+    const data = budgets.map((b) => ({ ...b, spent: byCategory.get(b.category) ?? 0 }))
+    return NextResponse.json({ data, success: true })
   } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: "Failed to fetch budgets" }, { status: 500 })
+    logger.error("Failed to fetch budgets", { error: String(error) })
+    return NextResponse.json({ error: "Couldn't load budgets" }, { status: 500 })
   }
 }
 
+/** Set a category's limit for a month. A limit of 0 removes the budget. */
 export async function POST(request: Request) {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+
+  const parsed = parseBudget(await request.json().catch(() => null))
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  const { category, limit, month, year } = parsed.data
+  // one row per user, category and month
+  const id = `${userId}_${category}_${month}_${year}`
+
   try {
-    const body = await request.json()
-    const { userId, category, limit, month, year } = body
-
-    if (!userId || !category || !limit) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+    if (limit === 0) {
+      await prisma.budget.deleteMany({ where: { id, userId } })
+      return NextResponse.json({ data: null, success: true })
     }
-
-    // Upsert — update if exists, create if not
     const budget = await prisma.budget.upsert({
-      where: {
-        id: `${userId}_${category}_${month}_${year}`,
-      },
+      where: { id },
       update: { limit },
-      create: {
-        id: `${userId}_${category}_${month}_${year}`,
-        userId, category, limit,
-        month: month || new Date().getMonth() + 1,
-        year: year || new Date().getFullYear(),
-        spent: 0,
-      },
+      create: { id, userId, category, limit, month, year, spent: 0 },
     })
-
     return NextResponse.json({ data: budget, success: true }, { status: 201 })
   } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: "Failed to save budget" }, { status: 500 })
+    logger.error("Failed to save budget", { error: String(error) })
+    return NextResponse.json({ error: "Couldn't save that budget" }, { status: 500 })
   }
 }

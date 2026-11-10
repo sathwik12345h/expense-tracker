@@ -1,4 +1,5 @@
 import { Resend } from "resend"
+import { logger } from "@/lib/logger"
 
 interface BudgetAlertProps {
   userName: string
@@ -12,88 +13,89 @@ interface BudgetAlertProps {
 const usd = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
-export async function sendBudgetAlert({
-  userName,
-  userEmail,
-  category,
-  spent,
-  limit,
-  percentage,
-}: BudgetAlertProps) {
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  const isOver = spent > limit
-  const subject = isOver
-    ? `You've gone over your ${category} budget`
-    : `You've used ${Math.round(percentage)}% of your ${category} budget`
+/** Names and categories come from people: never let them carry markup into the email. */
+const esc = (text: string) =>
+  text.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch)
 
-  const pct = Math.min(percentage, 100)
-  const barColor = isOver ? "#c4352a" : percentage > 90 ? "#f0b429" : "#16150f"
-  const remaining = isOver ? `${usd(spent - limit)} over` : `${usd(limit - spent)} left`
+// The email wears the app's daytime colours (email clients can't flip a coin).
+const INK = "#0b2b22"
+const SOFT = "#53685e"
+const CANVAS = "#eef4e9"
+const SURFACE = "#fbfdf6"
+const LINE = "#d2ddca"
+const CORAL = "#ff5a36"
+const GREEN = "#0f6b52"
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
+
+/** The "you're close to (or past) a cap" email. Returns false if it couldn't be sent. */
+export async function sendBudgetAlert({ userName, userEmail, category, spent, limit, percentage }: BudgetAlertProps) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const over = spent > limit
+  const pct = Math.round(percentage)
+  const name = esc(userName)
+  const cat = esc(category)
+
+  const subject = over ? `${category} has gone past its cap` : `${category} is at ${pct}% of its cap`
+  const bar = over ? CORAL : percentage > 90 ? "#f0b429" : GREEN
+  const remaining = over ? `${usd(spent - limit)} over` : `${usd(limit - spent)} left`
+  const base = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "")
 
   const { error } = await resend.emails.send({
     from: "Spendwise <onboarding@resend.dev>",
     to: userEmail,
     subject,
-    html: `
-      <!DOCTYPE html>
-      <html>
-        <body style="margin:0;padding:24px 12px;background:#f3f0e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#16150f;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
-            <tr>
-              <td style="padding:0 4px 18px;">
-                <span style="font-family:Georgia,'Times New Roman',serif;font-size:24px;letter-spacing:-0.3px;">Spendwise</span>
-                <span style="float:right;font-family:'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:2px;color:#6b675d;line-height:30px;">BUDGET NOTE</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="background:#fbfaf6;border:1px solid #ddd6c7;border-radius:20px;padding:32px;">
-                <p style="margin:0 0 6px;font-family:'SFMono-Regular',Menlo,monospace;font-size:11px;letter-spacing:2px;color:#6b675d;text-transform:uppercase;">${category}</p>
-                <h1 style="margin:0 0 18px;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:30px;line-height:1.1;">
-                  ${isOver ? "You&rsquo;ve gone over budget." : `${Math.round(percentage)}% of the way there.`}
-                </h1>
-                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#3b3a33;">
-                  Hi ${userName}, ${isOver
-                    ? `your <b>${category}</b> spending has passed the limit you set for this month.`
-                    : `you&rsquo;ve used <b>${Math.round(percentage)}%</b> of your <b>${category}</b> budget for this month.`}
-                </p>
+    html: `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:28px 12px;background:${CANVAS};font-family:${FONT};color:${INK};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
+      <tr>
+        <td style="padding:0 6px 16px;font-size:20px;font-weight:700;letter-spacing:-0.6px;">Spendwise</td>
+      </tr>
+      <tr>
+        <td style="background:${SURFACE};border:1px solid ${LINE};border-radius:24px;padding:32px;">
+          <p style="margin:0 0 10px;font-size:12px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:${over ? CORAL : SOFT};">
+            ${over ? "Past the cap" : "Heads up"} &middot; ${cat}
+          </p>
+          <h1 style="margin:0 0 14px;font-size:28px;line-height:1.12;font-weight:700;letter-spacing:-0.9px;">
+            ${over ? `${cat} is ${usd(spent - limit)} over.` : `${cat} is ${pct}% used.`}
+          </h1>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:${SOFT};">
+            Hi ${name}, ${
+              over
+                ? `this month's ${cat} spending has passed the cap you set. Nothing breaks; it's just good to know.`
+                : `you've used ${pct}% of this month's ${cat} cap, so there's still room to slow down.`
+            }
+          </p>
 
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border-top:1.5px dashed #cfc7b5;border-bottom:1.5px dashed #cfc7b5;">
-                  <tr>
-                    <td style="padding:14px 0 6px;color:#6b675d;">Spent</td>
-                    <td style="padding:14px 0 6px;text-align:right;font-weight:600;">${usd(spent)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 0 14px;color:#6b675d;">Limit</td>
-                    <td style="padding:0 0 14px;text-align:right;font-weight:600;">${usd(limit)}</td>
-                  </tr>
-                </table>
-
-                <div style="margin:20px 0 6px;background:#eae5d9;border-radius:999px;height:8px;overflow:hidden;">
-                  <div style="background:${barColor};width:${pct}%;height:8px;border-radius:999px;"></div>
-                </div>
-                <p style="margin:0 0 28px;font-size:12px;color:${isOver ? "#c4352a" : "#6b675d"};text-align:right;">${remaining}</p>
-
-                <a href="${process.env.NEXTAUTH_URL}/dashboard"
-                  style="display:inline-block;background:#16150f;color:#f3f0e8;text-decoration:none;padding:13px 22px;border-radius:999px;font-weight:600;font-size:14px;">
-                  Open your ledger &rarr;
-                </a>
-              </td>
-            </tr>
+          <div style="background:#e3ecdc;border-radius:999px;height:10px;overflow:hidden;">
+            <div style="background:${bar};width:${Math.min(100, Math.max(0, percentage))}%;height:10px;border-radius:999px;"></div>
+          </div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 28px;font-size:14px;">
             <tr>
-              <td style="padding:18px 4px 0;font-size:11.5px;color:#6b675d;line-height:1.6;">
-                You&rsquo;re getting this because you set a ${category} budget in Spendwise.
-              </td>
+              <td style="color:${SOFT};">${usd(spent)} of ${usd(limit)}</td>
+              <td style="text-align:right;font-weight:700;color:${over ? CORAL : INK};">${remaining}</td>
             </tr>
           </table>
-        </body>
-      </html>
-    `,
+
+          <a href="${base}/dashboard/budget"
+            style="display:inline-block;background:${CORAL};color:#2a0c03;text-decoration:none;padding:14px 24px;border-radius:999px;font-weight:700;font-size:15px;">
+            See your budgets &rarr;
+          </a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:16px 6px 0;font-size:12px;color:${SOFT};line-height:1.6;">
+          You're getting this because you set a ${cat} cap in Spendwise. Remove the cap and these stop.
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`,
   })
 
   if (error) {
-    console.error("Failed to send budget alert email:", error)
+    logger.error("Failed to send budget alert email", { error: String(error.message ?? error) })
     return false
   }
-
   return true
 }

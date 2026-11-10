@@ -5,23 +5,33 @@ import {
 import type { Category } from "@/types"
 
 interface CategoryMeta {
+  /** A CSS colour (a theme variable), safe anywhere CSS is: styles, SVG fills. */
   color: string
+  /** The raw custom property behind `color`, for canvas/WebGL code that needs a resolved value. */
+  token: string
   icon: LucideIcon
-  /** Text colour on a solid tile of `color`: whichever passes WCAG 2 AA (≥ 4.5:1). */
-  labelOn: "#16150f" | "#ffffff"
+  /** Text colour on a solid tile of `color` (≥ 4.5:1 in both themes). */
+  labelOn: string
 }
 
-// Hues validated as a set (all-pairs CVD ΔE ≥ 8 on the card surface).
-// Text never wears these colours — they mark tiles, bars and swatches only.
+const meta = (slug: string, icon: LucideIcon, labelOn = "var(--color-on-cat)"): CategoryMeta => ({
+  color: `var(--color-cat-${slug})`,
+  token: `--c-cat-${slug}`,
+  icon,
+  labelOn,
+})
+
+// Hues are defined per theme in globals.css. Text never wears these colours —
+// they mark tiles, bars, coins and swatches, always next to a glyph or label.
 export const CATEGORY_META: Record<Category, CategoryMeta> = {
-  Food: { color: "#eda100", icon: UtensilsCrossed, labelOn: "#16150f" },
-  Travel: { color: "#3fa7d6", icon: Plane, labelOn: "#16150f" },
-  Shopping: { color: "#e87ba4", icon: ShoppingBag, labelOn: "#16150f" },
-  Bills: { color: "#2f5597", icon: ReceiptText, labelOn: "#ffffff" },
-  Entertainment: { color: "#a8385e", icon: Clapperboard, labelOn: "#ffffff" },
-  Health: { color: "#7a8c00", icon: HeartPulse, labelOn: "#16150f" },
-  Other: { color: "#8f8a7e", icon: Shapes, labelOn: "#16150f" },
-  Income: { color: "#1f7a4d", icon: ArrowDownLeft, labelOn: "#ffffff" },
+  Food: meta("food", UtensilsCrossed),
+  Travel: meta("travel", Plane),
+  Shopping: meta("shopping", ShoppingBag),
+  Bills: meta("bills", ReceiptText),
+  Entertainment: meta("entertainment", Clapperboard),
+  Health: meta("health", HeartPulse),
+  Other: meta("other", Shapes),
+  Income: meta("income", ArrowDownLeft, "var(--c-on-cat-income)"),
 }
 
 export const EXPENSE_CATEGORIES: Category[] = [
@@ -32,6 +42,11 @@ export const ALL_CATEGORIES: Category[] = [...EXPENSE_CATEGORIES, "Income"]
 
 export function categoryMeta(category: string): CategoryMeta {
   return CATEGORY_META[category as Category] ?? CATEGORY_META.Other
+}
+
+/** `color` at a given opacity — the themed replacement for hex-alpha suffixes. */
+export function tint(color: string, percent: number) {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`
 }
 
 /** Normalise free-form text ("food", "BILLS") to a known category. */
@@ -48,10 +63,10 @@ export function CategoryGlyph({
   return (
     <span
       aria-hidden
-      className={`relative inline-flex shrink-0 items-center justify-center rounded-[10px] text-ink-2 ${className}`}
-      style={{ width: size, height: size, background: `${color}26`, boxShadow: `inset 0 0 0 1px ${color}40` }}
+      className={`relative inline-flex shrink-0 items-center justify-center rounded-[10px] text-fg ${className}`}
+      style={{ width: size, height: size, background: tint(color, 22), boxShadow: `inset 0 0 0 1.5px ${tint(color, 55)}` }}
     >
-      <Icon size={Math.round(size * 0.46)} strokeWidth={1.75} />
+      <Icon size={Math.round(size * 0.46)} strokeWidth={1.9} />
     </span>
   )
 }

@@ -25,6 +25,19 @@ export function usePrefersReducedMotion() {
   )
 }
 
+/** Whether a media query matches right now. false during SSR and the hydration pass. */
+export function useMediaQuery(query: string) {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(query)
+      mq.addEventListener("change", cb)
+      return () => mq.removeEventListener("change", cb)
+    },
+    () => window.matchMedia(query).matches,
+    () => false
+  )
+}
+
 // A shared, minute-granularity clock. null during SSR/hydration so markup
 // never depends on the server's timezone; ticks once a minute afterwards.
 let current: Date | null = null

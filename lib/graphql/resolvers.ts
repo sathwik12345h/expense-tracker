@@ -1,128 +1,73 @@
+import { GraphQLError } from "graphql"
 import { prisma } from "@/lib/prisma"
+import { parseBudget, parseExpense } from "@/lib/validate"
+
+/** Set by the route from the session. Every resolver works on this user's data only. */
+export interface GraphContext {
+  userId: string
+}
+
+// The schema still accepts `userId` arguments so old queries keep parsing, but
+// they are ignored: who you are comes from your session, never from the query.
+
+type Dated = { date: Date; createdAt: Date; updatedAt: Date }
+const iso = <T extends Dated>(row: T) => ({
+  ...row,
+  date: row.date.toISOString(),
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+})
+
+const invalid = (message: string) => new GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } })
 
 export const resolvers = {
   Query: {
-    // Get all expenses for a user
-    expenses: async (_: unknown, { userId }: { userId: string }) => {
-      const expenses = await prisma.expense.findMany({
-        where: { userId },
-        orderBy: { date: "desc" },
-      })
-      return expenses.map((e) => ({
-        ...e,
-        date: e.date.toISOString(),
-        createdAt: e.createdAt.toISOString(),
-        updatedAt: e.updatedAt.toISOString(),
-      }))
+    expenses: async (_: unknown, __: unknown, { userId }: GraphContext) => {
+      const rows = await prisma.expense.findMany({ where: { userId }, orderBy: { date: "desc" } })
+      return rows.map(iso)
     },
 
-    // Get single expense
-    expense: async (_: unknown, { id }: { id: string }) => {
-      const expense = await prisma.expense.findUnique({ where: { id } })
-      if (!expense) return null
-      return {
-        ...expense,
-        date: expense.date.toISOString(),
-        createdAt: expense.createdAt.toISOString(),
-        updatedAt: expense.updatedAt.toISOString(),
-      }
+    expense: async (_: unknown, { id }: { id: string }, { userId }: GraphContext) => {
+      const row = await prisma.expense.findFirst({ where: { id, userId } })
+      return row ? iso(row) : null
     },
 
-    // Get budgets with actual spent amounts
-    budgets: async (
-      _: unknown,
-      { userId, month, year }: { userId: string; month: number; year: number }
-    ) => {
-      const budgets = await prisma.budget.findMany({
-        where: { userId, month, year },
-      })
-
-      const startDate = new Date(year, month - 1, 1)
-      const endDate = new Date(year, month, 0)
-
-      const expenses = await prisma.expense.findMany({
-        where: {
-          userId,
-          type: "expense",
-          date: { gte: startDate, lte: endDate },
-        },
-      })
-
-      return budgets.map((budget) => {
-        const spent = expenses
-          .filter((e) => e.category === budget.category)
-          .reduce((sum, e) => sum + e.amount, 0)
-        return { ...budget, spent }
-      })
+    /** Budgets for a month, each with what has been spent against it. */
+    budgets: async (_: unknown, { month, year }: { month: number; year: number }, { userId }: GraphContext) => {
+      const [budgets, spent] = await Promise.all([
+        prisma.budget.findMany({ where: { userId, month, year } }),
+        prisma.expense.groupBy({
+          by: ["category"],
+          where: { userId, type: "expense", date: { gte: new Date(year, month - 1, 1), lt: new Date(year, month, 1) } },
+          _sum: { amount: true },
+        }),
+      ])
+      const byCategory = new Map(spent.map((s) => [s.category, s._sum.amount ?? 0]))
+      return budgets.map((b) => ({ ...b, spent: byCategory.get(b.category) ?? 0 }))
     },
   },
 
   Mutation: {
-    // Create expense
-    createExpense: async (
-      _: unknown,
-      args: {
-        userId: string
-        name: string
-        amount: number
-        type: string
-        category: string
-        date: string
-        note?: string
-        paymentMethod?: string
-      }
-    ) => {
-      const expense = await prisma.expense.create({
-        data: {
-          name: args.name,
-          amount: args.amount,
-          type: args.type,
-          category: args.category,
-          status: "cleared",
-          date: new Date(args.date),
-          note: args.note || null,
-          paymentMethod: args.paymentMethod || null,
-          userId: args.userId,
-        },
-      })
-      return {
-        ...expense,
-        date: expense.date.toISOString(),
-        createdAt: expense.createdAt.toISOString(),
-        updatedAt: expense.updatedAt.toISOString(),
-      }
+    createExpense: async (_: unknown, args: Record<string, unknown>, { userId }: GraphContext) => {
+      const parsed = parseExpense(args)
+      if (!parsed.ok) throw invalid(parsed.error)
+      return iso(await prisma.expense.create({ data: { ...parsed.data, userId } }))
     },
 
-    // Delete expense
-    deleteExpense: async (_: unknown, { id }: { id: string }) => {
-      await prisma.expense.delete({ where: { id } })
-      return true
+    deleteExpense: async (_: unknown, { id }: { id: string }, { userId }: GraphContext) => {
+      const result = await prisma.expense.deleteMany({ where: { id, userId } })
+      return result.count > 0
     },
 
-    // Save budget
-    saveBudget: async (
-      _: unknown,
-      args: {
-        userId: string
-        category: string
-        limit: number
-        month: number
-        year: number
-      }
-    ) => {
-      const id = `${args.userId}_${args.category}_${args.month}_${args.year}`
+    saveBudget: async (_: unknown, args: Record<string, unknown>, { userId }: GraphContext) => {
+      const parsed = parseBudget(args)
+      if (!parsed.ok) throw invalid(parsed.error)
+      const { category, limit, month, year } = parsed.data
+      const id = `${userId}_${category}_${month}_${year}`
       const budget = await prisma.budget.upsert({
         where: { id },
-        update: { limit: args.limit },
-        create: {
-          id,
-          userId: args.userId,
-          category: args.category,
-          limit: args.limit,
-          month: args.month,
-          year: args.year,
-          spent: 0,
-        },
+        update: { limit },
+        create: { id, userId, category, limit, month, year, spent: 0 },
       })
       return { ...budget, spent: 0 }
     },

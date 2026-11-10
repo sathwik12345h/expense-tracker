@@ -22,7 +22,7 @@ export interface Expense {
   type: TransactionType;
   status: ExpenseStatus;
   date: Date;
-  notes?: string;
+  note?: string | null;
   paymentMethod?: PaymentMethod;
   userId: string;
   createdAt: Date;

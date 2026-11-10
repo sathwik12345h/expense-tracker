@@ -1,26 +1,34 @@
 import Link from "next/link"
 
-export function LogoMark({ size = 26, onInk = false }: { size?: number; onInk?: boolean }) {
+/** One coin of the mark: an elliptical face on a short side wall. */
+function Coin({ y, face, side }: { y: number; face: string; side: string }) {
   return (
-    <svg width={size} height={size * (32 / 28)} viewBox="0 0 28 32" aria-hidden>
-      <path
-        d="M3 2.5A1.5 1.5 0 0 1 4.5 1h19A1.5 1.5 0 0 1 25 2.5V30l-3.67-2.4L17.67 30 14 27.6 10.33 30 6.67 27.6 3 30z"
-        fill={onInk ? "#f3f0e8" : "#16150f"}
-      />
-      <rect x="8" y="8" width="12" height="3" rx="1.5" fill="#d4f36b" />
-      <rect x="8" y="14.5" width="8" height="3" rx="1.5" fill={onInk ? "#16150f" : "#f3f0e8"} opacity=".55" />
-      <rect x="8" y="21" width="10" height="3" rx="1.5" fill={onInk ? "#16150f" : "#f3f0e8"} opacity=".3" />
+    <>
+      <path d={`M4 ${y}v4.4c0 2.9 5.4 5.2 12 5.2s12-2.3 12-5.2V${y}z`} fill={side} />
+      <ellipse cx="16" cy={y} rx="12" ry="5.2" fill={face} />
+    </>
+  )
+}
+
+/** The mark: three coins stacked — evergreen, coral, sun. */
+export function LogoMark({ size = 28 }: { size?: number; onInk?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
+      <Coin y={20.6} face="#1b9a76" side="#0c5c46" />
+      <Coin y={14.4} face="#ff5a36" side="#b02c0c" />
+      <Coin y={8.2} face="#ffd23f" side="#c08d00" />
+      <ellipse cx="16" cy="8.2" rx="6.4" ry="2.5" fill="none" stroke="#c08d00" strokeWidth="1.1" opacity=".75" />
     </svg>
   )
 }
 
 export function Logo({ href = "/", onInk = false }: { href?: string; onInk?: boolean }) {
   return (
-    <Link href={href} className="group inline-flex items-center gap-2.5" aria-label="Spendwise home">
-      <span className="transition-transform duration-300 group-hover:-rotate-6">
-        <LogoMark onInk={onInk} />
+    <Link href={href} className="group inline-flex items-center gap-2" aria-label="Spendwise home">
+      <span className="transition-transform duration-300 ease-spring group-hover:-translate-y-0.5 group-hover:-rotate-6">
+        <LogoMark />
       </span>
-      <span className={`font-serif text-[26px] leading-none tracking-tight ${onInk ? "text-on-ink" : "text-ink"}`}>
+      <span className={`font-display text-[24px] leading-none ${onInk ? "text-on-solid" : "text-fg"}`}>
         Spendwise
       </span>
     </Link>

@@ -1,75 +1,86 @@
 "use client"
 
-import Link from "next/link"
-import { useState } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { ArrowRight } from "lucide-react"
-import AuthShell, { Field, FormError, SubmitButton } from "@/components/auth/AuthShell"
+import { ArrowRight, AtSign, KeyRound } from "lucide-react"
+import AuthCard, { Field, Problem, Submit } from "@/components/site/AuthCard"
+
+// A read-only-feeling account for looking around; created by `npm run db:seed`.
+const DEMO = { email: "test@spendwise.com", password: "password123" }
 
 export default function LoginPage() {
   const router = useRouter()
-  const [error, setError] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const form = useRef<HTMLFormElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
-    setError(false)
-
-    const formData = new FormData(e.currentTarget)
-
+    setBusy(true)
+    setFailed(false)
+    const data = new FormData(e.currentTarget)
     const result = await signIn("credentials", {
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email: data.get("email"),
+      password: data.get("password"),
       redirect: false,
     })
-
     if (result?.error) {
-      setError(true)
-      setLoading(false)
+      setFailed(true)
+      setBusy(false)
     } else {
       router.push("/dashboard")
     }
   }
 
+  function useDemo() {
+    const el = form.current
+    if (!el) return
+    ;(el.elements.namedItem("email") as HTMLInputElement).value = DEMO.email
+    ;(el.elements.namedItem("password") as HTMLInputElement).value = DEMO.password
+    el.requestSubmit()
+  }
+
   return (
-    <AuthShell
-      headline={<>Welcome back.<br /><span className="italic text-lime">Your ledger</span> kept count.</>}
-      sub="Everything you logged is right where you left it — budgets, notes, and the month so far."
+    <AuthCard
+      mode="in"
+      title={
+        <>
+          Welcome back. <span className="italic">Pick up where you left off.</span>
+        </>
+      }
+      lead="Sign in to see this month's numbers."
+      footer="Your numbers stay yours. We never sell them."
     >
-      <p className="eyebrow text-muted">Sign in</p>
-      <h2 className="mt-3 font-serif text-[46px] leading-none tracking-tight">Open your ledger</h2>
-      <p className="mt-3 text-[15px] text-muted">
-        New here?{" "}
-        <Link href="/signup" className="font-medium text-ink underline decoration-line-2 decoration-2 underline-offset-4 hover:decoration-ink">
-          Create an account
-        </Link>
-      </p>
+      <form ref={form} onSubmit={submit} className="mt-7 flex flex-col gap-5">
+        <Field label="Email" icon={AtSign} name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
+        <Field label="Password" icon={KeyRound} name="password" type="password" placeholder="Your password" autoComplete="current-password" required />
 
-      <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-7">
-        <Field label="Email" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
-        <Field label="Password" name="password" type="password" placeholder="Your password" autoComplete="current-password" required />
-
-        {error && (
-          <FormError>
-            That email and password don&apos;t match.
-            <span className="mt-1 block text-[13px] text-ink-2">
-              Trying the demo? Use <span className="font-mono">test@spendwise.com</span> / <span className="font-mono">password123</span>
-            </span>
-          </FormError>
+        {failed && (
+          <Problem>
+            <strong className="font-semibold">That didn&apos;t match.</strong> Check the email and password and have another go.
+          </Problem>
         )}
 
-        <div className="mt-2">
-          <SubmitButton loading={loading} loadingText="Signing in…">
-            Sign in <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
-          </SubmitButton>
+        <div className="mt-1">
+          <Submit busy={busy} busyLabel="Signing you in…">
+            Sign in
+            <ArrowRight size={19} strokeWidth={2.6} aria-hidden className="transition-transform duration-300 group-hover:translate-x-1" />
+          </Submit>
         </div>
       </form>
 
-      <p className="mt-12 text-center font-mono text-[11px] tracking-wide text-muted">
-        <Link href="/" className="hover:text-ink">← Back to spendwise</Link>
+      <p className="mt-6 text-center text-[14px] text-muted">
+        Just looking?{" "}
+        <button
+          type="button"
+          onClick={useDemo}
+          disabled={busy}
+          className="font-semibold text-fg underline decoration-line-2 decoration-2 underline-offset-4 transition hover:decoration-fg"
+        >
+          Walk in with the demo account
+        </button>
       </p>
-    </AuthShell>
+    </AuthCard>
   )
 }

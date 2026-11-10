@@ -2,39 +2,23 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { logger } from "@/lib/logger"
+import { parseExpense } from "@/lib/validate"
 
+/** Create a transaction for the signed-in user. */
 export async function POST(request: Request) {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+
+  const parsed = parseExpense(await request.json().catch(() => null))
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
+
   try {
-    const session = await auth()
-    const body = await request.json()
-
-    const userId = session?.user?.id ?? body.userId
-
-    if (!userId) {
-      logger.warn("Unauthorized expense creation attempt")
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    logger.info("Creating expense", { name: body.name, amount: body.amount, userId })
-
-    const expense = await prisma.expense.create({
-      data: {
-        name: body.name,
-        amount: body.amount,
-        type: body.type,
-        category: body.category,
-        status: body.status ?? "cleared",
-        date: new Date(body.date),
-        note: body.note || null,
-        paymentMethod: body.paymentMethod || null,
-        userId: userId,
-      },
-    })
-
-    logger.info("Expense created successfully", { id: expense.id })
+    const expense = await prisma.expense.create({ data: { ...parsed.data, userId } })
+    logger.info("Expense created", { id: expense.id, userId })
     return NextResponse.json({ data: expense, success: true }, { status: 201 })
   } catch (error) {
-    logger.error("Failed to create expense", { error })
-    return NextResponse.json({ error: "Failed to create expense" }, { status: 500 })
+    logger.error("Failed to create expense", { error: String(error) })
+    return NextResponse.json({ error: "Couldn't save that. Try again." }, { status: 500 })
   }
 }

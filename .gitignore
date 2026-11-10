@@ -43,3 +43,6 @@ next-env.d.ts
 /lib/generated/prisma
 
 .vercel
+
+# keep the template
+!.env.example

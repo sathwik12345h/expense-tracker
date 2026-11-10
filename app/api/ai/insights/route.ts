@@ -83,12 +83,17 @@ function estimateSavings(name: string): number {
 
 export async function GET() {
   try {
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    // No AI key configured: that's a normal way to run the app, not an error.
+    // Answer with "nothing to say yet" so the notes card shows its calm fallback.
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ success: true, alerts: [] })
+    }
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
     const now = new Date()
     const month = now.getMonth() + 1

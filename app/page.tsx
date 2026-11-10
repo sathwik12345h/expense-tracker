@@ -1,21 +1,23 @@
-import LandingNav from "@/components/landing/LandingNav"
-import Hero from "@/components/landing/Hero"
-import Ticker from "@/components/landing/Ticker"
-import HowItWorks from "@/components/landing/HowItWorks"
-import Features from "@/components/landing/Features"
-import Statement from "@/components/landing/Statement"
-import Closing from "@/components/landing/Closing"
+import SiteNav from "@/components/site/SiteNav"
+import Hero from "@/components/site/Hero"
+import Pile from "@/components/site/Pile"
+import Layers from "@/components/site/Layers"
+import FeatureIndex from "@/components/site/FeatureIndex"
+import Showcase from "@/components/site/Showcase"
+import Finale from "@/components/site/Finale"
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <main className="overflow-x-clip">
-      <LandingNav />
-      <Hero />
-      <Ticker />
-      <HowItWorks />
-      <Features />
-      <Statement />
-      <Closing />
-    </main>
+    <>
+      <SiteNav />
+      <main className="overflow-x-clip">
+        <Hero />
+        <Pile />
+        <Layers />
+        <FeatureIndex />
+        <Showcase />
+        <Finale />
+      </main>
+    </>
   )
 }
